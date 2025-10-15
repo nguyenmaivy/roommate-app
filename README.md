@@ -50,7 +50,7 @@
 -----
 
 ## 🏗️ Cấu Trúc Dự Án (Folder Structure)
-
+```
 roommate-app/
 ├── backend/                  # Backend serverless (Lambda functions)
 │   ├── lambda/               # Các handler Lambda
@@ -117,7 +117,7 @@ roommate-app/
 ├── package.json              # Root (nếu monorepo với workspaces)
 ├── README.md                 # Overview project, run instructions
 └── LICENSE                   # MIT hoặc tương tự
-
+```
 -----
 
 ## 🚀 Hướng Dẫn Thiết Lập (Getting Started)
