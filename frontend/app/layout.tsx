@@ -1,25 +1,33 @@
-import { Inter } from 'next/font/google';
-import Navbar from '@/components/Navbar';
-import './globals.css';
-import type { ReactNode } from 'react';
+import type React from "react"
+import type { Metadata } from "next"
+import { Geist, Geist_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import Navbar from "@/components/Navbar"
+import Footer from "@/components/Footer"
+import "./globals.css"
 
-const inter = Inter({ subsets: ['latin'] });
+const _geist = Geist({ subsets: ["latin"] })
+const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
-export const metadata = {
-  title: 'RoomMate - Tìm Phòng Trọ Dễ Dàng',
-  description: 'Ứng dụng tìm kiếm và quản lý phòng trọ cho sinh viên',
-};
+export const metadata: Metadata = {
+  title: "Phòng Trọ - Tìm Kiếm Phòng Trọ Chất Lượng",
+  description: "Nền tảng tìm kiếm và quản lý phòng trọ hiện đại",
+  generator: "v0.app",
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
     <html lang="vi">
-      <body className={inter.className}>
+      <body className={`font-sans antialiased`}>
         <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
-        <footer className="bg-gray-800 text-white p-4 text-center">
-          &copy; 2025 RoomMate. All rights reserved.
-        </footer>
+        {children}
+        <Footer />
+        <Analytics />
       </body>
     </html>
-  );
+  )
 }
