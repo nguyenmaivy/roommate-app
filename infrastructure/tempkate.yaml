@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  RoomApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      DefinitionBody:
+        swagger: '2.0'
+        info: { title: 'RoomMate API' }
+        paths:
+          /rooms:
+            post:
+              x-amazon-apigateway-integration:
+                uri: arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/arn:aws:lambda:{region}:{account}:function:RoomCrud/invocations
+                httpMethod: POST
+            get:
+              x-amazon-apigateway-integration: ... # Similar for search
+  RoomCrudFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambda/
+      Handler: roomCrud.handler
+      Runtime: nodejs20.x
+      Events:
+        ApiEvent: { Type: Api, Properties: { Path: /rooms, Method: post } }
