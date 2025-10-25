@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Home, User } from 'lucide-react';
 import Link from 'next/link';
-import { Amplify, Auth } from 'aws-amplify';
+import { getCurrentUser } from 'aws-amplify/auth';
 import { USER_ROLES, INITIAL_USER } from '@/mockData';
+import { get } from 'http';
 
 export default function Navbar() {
   const [user, setUser] = useState(INITIAL_USER);
@@ -12,11 +13,11 @@ export default function Navbar() {
   useEffect(() => {
     async function checkUser() {
       try {
-        const currentUser = await Auth.currentAuthenticatedUser();
+        const currentUser = await getCurrentUser();
         setUser({
-          id: currentUser.attributes.sub,
-          name: currentUser.attributes.name || 'User',
-          role: currentUser.attributes['custom:role'] || USER_ROLES.STUDENT,
+          id: currentUser.userId,
+          name: currentUser.username || 'User',
+          role: USER_ROLES.STUDENT,
         });
       } catch {
         setUser(INITIAL_USER);
@@ -27,11 +28,11 @@ export default function Navbar() {
 
   const handleSwitchUser = async () => {
     if (user.role === USER_ROLES.STUDENT) {
-      setUser({ id: 'L1', name: 'Trần Văn B (Chủ trọ)', role: USER_ROLES.LANDLORD });
+      setUser({ id: "L1", name: "Trần Văn B (Chủ trọ)", role: USER_ROLES.LANDLORD })
     } else {
-      setUser(INITIAL_USER);
+      setUser(INITIAL_USER)
     }
-  };
+  }
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-40">

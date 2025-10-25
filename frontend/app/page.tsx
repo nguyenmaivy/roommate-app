@@ -315,7 +315,7 @@ export default function Home() {
                       onChange={(e) => setFilters((prev) => ({ ...prev, showFavorites: e.target.checked }))}
                       className="rounded text-red-500 focus:ring-red-500 h-4 w-4 mr-2 border-gray-300"
                     />
-                    Chỉ xem phòng <strong>Đã Lưu</strong> ({favorites.length})
+                    Chỉ xem phòng <strong> Đã Lưu</strong> ({favorites.length})
                   </label>
                 </div>
               )}
