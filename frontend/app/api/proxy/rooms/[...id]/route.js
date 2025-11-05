@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MOCK_ROOMS } from '@/mockData';
 
-export async function GET(request, { context }) {
-  const { params } = await context;
+export async function GET(request, { params }) {
   const { searchParams } = new URL(request.url);
   const district = searchParams.get('district');
   const idSegments = params?.id;

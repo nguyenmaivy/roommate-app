@@ -17,7 +17,7 @@ export default function RoomDetailPage() {
   useEffect(() => {
     async function fetchRoom() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms/${params.id}`);
+        const res = await fetch(`/api/proxy/rooms/${params.id}`);
         const data = await res.json();
         setRoom(data);
       } catch (error) {
