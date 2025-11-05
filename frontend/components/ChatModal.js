@@ -24,7 +24,7 @@ export default function ChatModal({ room, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end p-4 z-50">
+    <div className="fixed inset-0 bg-black/25 flex items-center justify-end p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm h-full max-h-[80vh] flex flex-col">
         <div className="p-4 border-b bg-indigo-500 text-white rounded-t-xl flex justify-between items-center">
           <h3 className="font-bold flex items-center">

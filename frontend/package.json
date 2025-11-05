@@ -9,9 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vietmap/vietmap-gl-js": "^6.0.1",
     "aws-amplify": "^6.15.7",
     "lucide-react": "^0.546.0",
-    "mapbox-gl": "^3.15.0",
     "next": "15.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
