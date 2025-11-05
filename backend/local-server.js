@@ -1,87 +1,103 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const AWS = require('aws-sdk');
-const path = require('path');
-
-// Load lambda handlers
-const roomCrud = require(path.join(__dirname, 'lambda', 'roomCrud'));
-
-// Configure DynamoDB endpoint for local DynamoDB (if provided)
-const DDB_ENDPOINT = process.env.DYNAMODB_ENDPOINT || process.env.AWS_DYNAMODB_ENDPOINT;
-const region = process.env.AWS_REGION || 'us-east-1';
-
-if (DDB_ENDPOINT) {
-  AWS.config.update({ region });
-}
-
-const docClient = new AWS.DynamoDB.DocumentClient({ endpoint: DDB_ENDPOINT });
-
-// Patch handlers that use a module-level dynamoDb - we monkey-patch for local runs
-try {
-  // If the lambda module exports a local reference, overwrite it
-  const lambdaPath = path.join(__dirname, 'lambda', 'roomCrud.js');
-  // Load module from require cache and set its dynamoDb if possible
-  if (roomCrud && roomCrud.__setDocumentClient) {
-    roomCrud.__setDocumentClient(docClient);
-  } else {
-    // some lambdas reference a module-level dynamoDb; try to patch global
-    // This is best-effort; the handler code already constructs a dynamo client from AWS.DynamoDB.DocumentClient()
-  }
-} catch (e) {
-  // ignore
-}
+import express from "express";
+import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
+import { handler as registerUserHandler, __setDocumentClient as setRegisterClient } from "./lambda/registerUser.js";
+import { handler as loginUserHandler, __setDocumentClient as setLoginClient } from "./lambda/loginUser.js";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { createRoom, getRooms, getRoom, updateRoom, deleteRoom, __setDocumentClient as setRoomClient } from "./lambda/roomCrud.js";
+import { initChatRealtime, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
+import { Server } from "socket.io";
+import http from "http";
 
 const app = express();
-app.use(bodyParser.json());
+const port = 3001;
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Helper to call a lambda-style handler and send back response
-const callHandler = async (handler, event, res) => {
+// Middleware
+app.use(bodyParser.json());
+app.use(cookieParser());
+
+// DynamoDB Local
+const client = new DynamoDBClient({ region: "us-east-1", endpoint: "http://localhost:8000", credentials: { accessKeyId: "fake", secretAccessKey: "fake" } });
+const ddb = DynamoDBDocumentClient.from(client);
+setRegisterClient(ddb);
+setLoginClient(ddb);
+setRoomClient(ddb);
+setChatClient(ddb);
+
+// --- Register ---
+app.post("/register", async (req, res) => {
+  const event = { body: JSON.stringify(req.body) };
+  const response = await registerUserHandler(event);
+  res.status(response.statusCode).json(JSON.parse(response.body));
+});
+
+// --- Login ---
+app.post("/login", async (req, res) => {
+  const event = { body: JSON.stringify(req.body) };
+  const response = await loginUserHandler(event);
+  // Trả luôn cookie từ Lambda
+  res.set(response.headers || {}).status(response.statusCode).json(JSON.parse(response.body));
+});
+
+// --- Middleware kiểm tra JWT ---
+import jwt from "jsonwebtoken";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+
+export const authMiddleware = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
   try {
-    const result = await handler.handler(event);
-    if (result && result.statusCode) {
-      res.status(result.statusCode).send(result.body);
-    } else {
-      res.json(result);
-    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
   } catch (err) {
-    console.error('Handler error:', err);
-    res.status(500).json({ error: err.message || String(err) });
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
 
-// Routes - mirror basic operations from roomCrud.js
-app.post('/rooms', async (req, res) => {
-  const event = {
-    httpMethod: 'POST',
-    body: JSON.stringify(req.body),
-    pathParameters: null,
-    queryStringParameters: null,
-  };
-  await callHandler(roomCrud, event, res);
+// CREATE
+app.post("/rooms", async (req, res) => {
+  const response = await createRoom({ body: JSON.stringify(req.body) });
+  res.status(response.statusCode).json(JSON.parse(response.body));
 });
 
-app.get('/rooms', async (req, res) => {
-  const event = {
-    httpMethod: 'GET',
-    body: null,
-    pathParameters: null,
-    queryStringParameters: req.query || null,
-  };
-  await callHandler(roomCrud, event, res);
+// READ ALL
+app.get("/rooms", async (req, res) => {
+  const response = await getRooms();
+  res.status(response.statusCode).json(JSON.parse(response.body));
 });
 
-app.get('/rooms/:id', async (req, res) => {
-  const event = {
-    httpMethod: 'GET',
-    body: null,
-    pathParameters: { id: req.params.id },
-    queryStringParameters: null,
-  };
-  await callHandler(roomCrud, event, res);
+// READ ONE
+app.get("/rooms/:roomId", async (req, res) => {
+  const response = await getRoom({ params: req.params });
+  res.status(response.statusCode).json(JSON.parse(response.body));
 });
 
-// Start
-const port = process.env.PORT || 3001;
-app.listen(port, () => console.log(`Local backend server listening on http://localhost:${port}`));
+// UPDATE
+app.put("/rooms/:roomId", async (req, res) => {
+  const body = { ...req.body, roomId: req.params.roomId };
+  const response = await updateRoom({ body: JSON.stringify(body) });
+  res.status(response.statusCode).json(JSON.parse(response.body));
+});
 
-module.exports = app;
+// DELETE
+app.delete("/rooms/:roomId", async (req, res) => {
+  const body = { roomId: req.params.roomId };
+  const response = await deleteRoom({ body: JSON.stringify(body) });
+  res.status(response.statusCode).json(JSON.parse(response.body));
+});
+
+// --- Example route bảo vệ ---
+app.get("/profile", authMiddleware, (req, res) => {
+  res.json({ message: "Protected profile", user: req.user });
+});
+
+// Khởi tạo chat realtime
+initChatRealtime(io);
+
+// Start server
+server.listen(port, () => console.log(`⚡ Local server + Socket.IO running at http://localhost:${port}`));

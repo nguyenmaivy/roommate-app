@@ -1,72 +1,96 @@
-const AWS = require('aws-sdk');
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
-const fetch = require('node-fetch');
-const { v4: uuidv4 } = require('uuid');
-const TABLE_NAME = 'Rooms';
-const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN; // Set in Lambda env: pk.xxx
+import { v4 as uuidv4 } from "uuid";
+import { PutCommand, GetCommand, ScanCommand, DeleteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
-const geocodeAddress = async (address) => {
+let ddb;
+export const __setDocumentClient = (client) => { ddb = client; };
+
+const ROOMS_TABLE = "Rooms";
+
+// CREATE
+export const createRoom = async (event) => {
+  const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+  const { title, price, district, city, area, amenities } = body;
+  if (!title || !price || !district || !city || !area) {
+    return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
+  }
+
+  const roomId = uuidv4();
+  const item = { roomId, title, price, district, city, area, amenities: amenities || [] };
+
   try {
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&country=VN&limit=1`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.features && data.features.length > 0) {
-      const [lng, lat] = data.features[0].center;
-      return { lat, lng };
-    }
-    return null;
-  } catch (error) {
-    console.error('Geocoding error:', error);
-    return null;
+    await ddb.send(new PutCommand({ TableName: ROOMS_TABLE, Item: item }));
+    return { statusCode: 201, body: JSON.stringify({ message: "Room created", room: item }) };
+  } catch (err) {
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
 
-exports.handler = async (event) => {
-  const { httpMethod, pathParameters, body, queryStringParameters } = event;
-  const data = body ? JSON.parse(body) : {};
+// READ ALL
+export const getRooms = async () => {
+  try {
+    const result = await ddb.send(new ScanCommand({ TableName: ROOMS_TABLE }));
+    return { statusCode: 200, body: JSON.stringify({ rooms: result.Items || [] }) };
+  } catch (err) {
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  }
+};
 
-  // Auth check (giả sử từ Cognito, add validator nếu cần)
-  if (!data.ownerId) return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) };
+// READ ONE
+export const getRoom = async (event) => {
+  const { roomId } = event.params || event.pathParameters || {};
+  if (!roomId) return { statusCode: 400, body: JSON.stringify({ error: "roomId required" }) };
+  try {
+    const result = await ddb.send(new GetCommand({ TableName: ROOMS_TABLE, Key: { roomId } }));
+    return { statusCode: 200, body: JSON.stringify({ room: result.Item }) };
+  } catch (err) {
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  }
+};
 
-  switch (httpMethod) {
-    case 'POST': // Add room với geocoding
-      const coords = await geocodeAddress(data.address);
-      const item = {
-        id: uuidv4(),
-        ownerId: data.ownerId,
-        price: data.price,
-        address: data.address,
-        amenities: data.amenities || [],
-        images: data.images || [],
-        district: data.district,
-        location: coords || { lat: 0, lng: 0 }, // Fallback nếu fail
-        createdAt: new Date().toISOString(),
-      };
-      await dynamoDb.put({ TableName: TABLE_NAME, Item: item }).promise();
-      
-      // Trigger n8n webhook cho thông báo (nếu có room mới)
-      await fetch('https://your-n8n-webhook-url/new-room', { method: 'POST', body: JSON.stringify(item) });
-      
-      return { statusCode: 200, body: JSON.stringify({ message: 'Room added', id: item.id }) };
+// UPDATE
+export const updateRoom = async (event) => {
+  const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+  const { roomId, title, price, district, city, area, amenities } = body;
+  if (!roomId) return { statusCode: 400, body: JSON.stringify({ error: "roomId required" }) };
 
-    case 'GET': // Get rooms (all hoặc by ID, include location)
-      if (pathParameters?.id) {
-        const result = await dynamoDb.get({ TableName: TABLE_NAME, Key: { id: pathParameters.id } }).promise();
-        return { statusCode: 200, body: JSON.stringify(result.Item) };
-      } else {
-        // Scan all (production: use query with index)
-        const params = { TableName: TABLE_NAME };
-        if (queryStringParameters?.district) {
-          params.FilterExpression = 'district = :district';
-          params.ExpressionAttributeValues = { ':district': queryStringParameters.district };
-        }
-        const results = await dynamoDb.scan(params).promise();
-        return { statusCode: 200, body: JSON.stringify(results.Items) };
-      }
+  const params = {
+    TableName: ROOMS_TABLE,
+    Key: { roomId },
+    UpdateExpression: "set title=:t, price=:p, district=:d, city=:c, area=:a, amenities=:am",
+    ExpressionAttributeValues: {
+      ":t": title,
+      ":p": price,
+      ":d": district,
+      ":c": city,
+      ":a": area,
+      ":am": amenities || [],
+    },
+    ReturnValues: "ALL_NEW",
+  };
 
-    // ... (PUT, DELETE như mẫu trước, thêm update location nếu cần)
+  try {
+    const result = await ddb.send(new UpdateCommand(params));
+    return { statusCode: 200, body: JSON.stringify({ message: "Room updated", room: result.Attributes }) };
+  } catch (err) {
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  }
+};
 
-    default:
-      return { statusCode: 405, body: 'Method Not Allowed' };
+// DELETE
+export const deleteRoom = async (event) => {
+  const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+  const { roomId } = body;
+  if (!roomId) return { statusCode: 400, body: JSON.stringify({ error: "roomId required" }) };
+
+  try {
+    await ddb.send(new DeleteCommand({ TableName: ROOMS_TABLE, Key: { roomId } }));
+    return { statusCode: 200, body: JSON.stringify({ message: "Room deleted" }) };
+  } catch (err) {
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
