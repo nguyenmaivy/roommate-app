@@ -1,26 +1,68 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { io } from "socket.io-client"
 import { MessageSquare, X } from "lucide-react"
 
 export default function ChatModal({ room, onClose }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: `Chào ${room.landlordId}! Tôi muốn hỏi về phòng ${room.title || room.address}. Phòng còn trống không ạ?`,
-      sender: "Student",
-    },
-    { id: 2, text: `Chào bạn! Phòng này hiện tại còn trống. Bạn muốn đến xem phòng lúc nào?`, sender: "Landlord" },
-  ])
+  const [messages, setMessages] = useState([])
   const [input, setInput] = useState("")
+  const socketRef = useRef(null)
+  const messagesEndRef = useRef(null)
+
+  // Tự động scroll xuống tin nhắn mới
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    // Kết nối Socket.IO
+    socketRef.current = io("http://localhost:3001") // URL backend Socket.IO
+
+    const socket = socketRef.current
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to socket server:", socket.id)
+      socket.emit("joinRoom", room.roomId)
+    })
+
+    socket.on("newMessage", (msg) => {
+      setMessages((prev) => [...prev, msg])
+      scrollToBottom()
+    })
+
+    socket.on("errorMessage", (err) => {
+      console.error("Socket error:", err)
+    })
+
+    // Cleanup khi đóng modal
+    return () => {
+      socket.disconnect()
+    }
+  }, [room.roomId])
 
   const handleSend = (e) => {
     e.preventDefault()
-    if (input.trim()) {
-      // Thay thế bằng API gửi tin nhắn (DynamoDB + Thông báo qua n8n)
-      setMessages((prev) => [...prev, { id: Date.now(), text: input, sender: "Student" }])
-      setInput("")
+    if (!input.trim()) return
+
+    const messageData = {
+      roomId: room.roomId,
+      sender: "Student", // Tùy chỉnh theo user login
+      receiver: room.landlordId,
+      text: input.trim(),
     }
+
+    // Gửi tin nhắn tới server
+    socketRef.current.emit("sendMessage", messageData)
+
+    // Hiển thị tạm ở frontend (optimistic UI)
+    setMessages((prev) => [
+      ...prev,
+      { ...messageData, messageId: Date.now(), createdAt: Date.now() },
+    ])
+
+    setInput("")
+    scrollToBottom()
   }
 
   return (
@@ -34,10 +76,14 @@ export default function ChatModal({ room, onClose }) {
             <X className="w-5 h-5" />
           </button>
         </div>
+
         {/* Khu vực Tin nhắn */}
         <div className="flex-grow p-4 space-y-3 overflow-y-auto">
           {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.sender === "Student" ? "justify-end" : "justify-start"}`}>
+            <div
+              key={msg.messageId || msg.id}
+              className={`flex ${msg.sender === "Student" ? "justify-end" : "justify-start"}`}
+            >
               <div
                 className={`max-w-xs px-4 py-2 rounded-xl text-sm ${
                   msg.sender === "Student"
@@ -49,8 +95,9 @@ export default function ChatModal({ room, onClose }) {
               </div>
             </div>
           ))}
-          <p className="text-xs text-center text-gray-400 mt-2 italic">Mô phỏng thông báo tin nhắn mới.</p>
+          <div ref={messagesEndRef} />
         </div>
+
         {/* Form gửi Tin nhắn */}
         <form onSubmit={handleSend} className="p-4 border-t">
           <div className="flex space-x-2">
@@ -61,7 +108,10 @@ export default function ChatModal({ room, onClose }) {
               placeholder="Nhập tin nhắn..."
               className="flex-grow px-4 py-2 border border-gray-300 rounded-full focus:ring-indigo-500 focus:border-indigo-500"
             />
-            <button type="submit" className="bg-indigo-600 text-white p-3 rounded-full hover:bg-indigo-700 transition">
+            <button
+              type="submit"
+              className="bg-indigo-600 text-white p-3 rounded-full hover:bg-indigo-700 transition"
+            >
               <span className="sr-only">Gửi</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"

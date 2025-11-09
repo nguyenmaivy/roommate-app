@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  # --- API GATEWAY ---
+  RoomApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      DefinitionBody:
+        swagger: '2.0'
+        info: { title: 'RoomMate API' }
+        paths:
+          /rooms:
+            post:
+              x-amazon-apigateway-integration:
+                uri: arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/arn:aws:lambda:{region}:{account}:function:RoomCrudFunction/invocations
+                httpMethod: POST
+            get:
+              x-amazon-apigateway-integration:
+                uri: arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/arn:aws:lambda:{region}:{account}:function:RoomCrudFunction/invocations
+                httpMethod: GET
+          /register:
+            post:
+              x-amazon-apigateway-integration:
+                uri: arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/arn:aws:lambda:{region}:{account}:function:RegisterFunction/invocations
+                httpMethod: POST
+          /login:
+            post:
+              x-amazon-apigateway-integration:
+                uri: arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/arn:aws:lambda:{region}:{account}:function:LoginFunction/invocations
+                httpMethod: POST
+
+  # --- Lambda CRUD Room ---
+  RoomCrudFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambda/
+      Handler: roomCrud.handler
+      Runtime: nodejs20.x
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RoomApi
+            Path: /rooms
+            Method: post
+
+  # --- Lambda Register ---
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambda/
+      Handler: registerUser.handler
+      Runtime: nodejs20.x
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: Users
+      Environment:
+        Variables:
+          USERS_TABLE: Users
+      Events:
+        RegisterApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RoomApi
+            Path: /register
+            Method: post
+
+  # --- Lambda Login ---
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/lambda/
+      Handler: loginUser.handler
+      Runtime: nodejs20.x
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: Users
+      Environment:
+        Variables:
+          USERS_TABLE: Users
+          JWT_SECRET: "supersecret"  # nhớ đổi khi deploy thực
+      Events:
+        LoginApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RoomApi
+            Path: /login
+            Method: post
+
+  # --- DynamoDB Users Table ---
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH

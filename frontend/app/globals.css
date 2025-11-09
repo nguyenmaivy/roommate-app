@@ -1,4 +1,4 @@
-@import 'mapbox-gl/dist/mapbox-gl.css';
+@import '@vietmap/vietmap-gl-js/dist/vietmap-gl.css';
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -126,7 +126,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #ccc9c9;
     --foreground: #746f6f;
   }
 }

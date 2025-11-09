@@ -1,19 +1,30 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import vietmapgl from '@vietmap/vietmap-gl-js';
-import '@vietmap/vietmap-gl-js/dist/vietmap-gl.css';
+import { useEffect, useRef, useState } from 'react';
 
 const VIETMAP_API_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY;
-vietmapgl.accessToken = VIETMAP_API_KEY;
 
 export default function RoomMap({ rooms }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
+  const [vietmapgl, setVietmapgl] = useState(null);
   const isTokenMissing = !VIETMAP_API_KEY || VIETMAP_API_KEY.length === 0;
 
   useEffect(() => {
-    if (isTokenMissing) return;
+    // Dynamic import để tránh lỗi SSR
+    import('@vietmap/vietmap-gl-js').then((module) => {
+      const vietmap = module.default || module;
+      if (vietmap) {
+        vietmap.accessToken = VIETMAP_API_KEY;
+        setVietmapgl(vietmap);
+      }
+    }).catch((error) => {
+      console.error('Error loading Vietmap GL:', error);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isTokenMissing || !vietmapgl || !mapContainer.current) return;
     if (!map.current) {
       map.current = new vietmapgl.Map({
         container: mapContainer.current,
@@ -42,7 +53,7 @@ export default function RoomMap({ rooms }) {
     });
 
     return () => markers.forEach(marker => marker.remove());
-  }, [rooms]);
+  }, [rooms, vietmapgl, isTokenMissing]);
 
   if (isTokenMissing) {
     return (
