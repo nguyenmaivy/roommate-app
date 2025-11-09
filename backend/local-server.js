@@ -8,6 +8,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { createRoom, getRooms, getRoom, updateRoom, deleteRoom, __setDocumentClient as setRoomClient } from "./lambda/roomCrud.js";
 import { initChatRealtime, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
 import { Server } from "socket.io";
+import cors from "cors";
 import http from "http";
 
 const app = express();
@@ -16,6 +17,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 // Middleware
+app.use(cors({ origin: "*" }))
 app.use(bodyParser.json());
 app.use(cookieParser());
 
@@ -79,15 +81,19 @@ app.get("/rooms/:roomId", async (req, res) => {
 
 // UPDATE
 app.put("/rooms/:roomId", async (req, res) => {
-  const body = { ...req.body, roomId: req.params.roomId };
-  const response = await updateRoom({ body: JSON.stringify(body) });
-  res.status(response.statusCode).json(JSON.parse(response.body));
+  try {
+    const { roomId } = req.params;
+    const response = await updateRoom(roomId, req.body); 
+
+    res.status(response.statusCode).json(JSON.parse(response.body));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE
 app.delete("/rooms/:roomId", async (req, res) => {
-  const body = { roomId: req.params.roomId };
-  const response = await deleteRoom({ body: JSON.stringify(body) });
+  const response = await deleteRoom({ params: req.params });
   res.status(response.statusCode).json(JSON.parse(response.body));
 });
 

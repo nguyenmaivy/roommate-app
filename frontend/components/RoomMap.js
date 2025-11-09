@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import vietmapgl from '@vietmap/vietmap-gl-js';
+import vietmapgl from "@vietmap/vietmap-gl-js/dist/vietmap-gl";
 import '@vietmap/vietmap-gl-js/dist/vietmap-gl.css';
 
 const VIETMAP_API_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY;
