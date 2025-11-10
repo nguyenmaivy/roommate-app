@@ -72,5 +72,4 @@ export const USER_ROLES = {
 export const INITIAL_USER = {
   id: "U1",
   name: "Nguyễn Văn A (Sinh viên)",
-  role: USER_ROLES.STUDENT,
 }

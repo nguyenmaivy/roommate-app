@@ -28,7 +28,7 @@ export default function SearchPage() {
     async function fetchRooms() {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`);
-        const data = await res.json();
+        const data = (await res.json()).rooms;
 
         const updatedRooms = data.map(room => ({
           ...room,

@@ -1,9 +1,9 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { X, Eye, EyeOff } from "lucide-react"
 
-export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true)
+export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
+  const [isLogin, setIsLogin] = useState(mode == "login")
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
@@ -12,9 +12,11 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     confirmPassword: "",
   })
   const [errors, setErrors] = useState({})
+  useEffect(() => {
+    setIsLogin(mode === "login");
+  }, [mode]);
 
   if (!isOpen) return null
-
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -55,23 +57,49 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    if (!validateForm()) return
+    if (!validateForm()) return;
 
-    // Mô phỏng đăng nhập/đăng ký
-    const userId = `user_${Date.now()}`
-    onLoginSuccess({
-      id: userId,
-      name: isLogin ? "Người dùng" : formData.fullName,
-      role: "student",
-    })
+    const endpoint = isLogin
+      ? "http://localhost:3001/login"
+      : "http://localhost:3001/register";
 
-    // Reset form
-    setFormData({ email: "", password: "", fullName: "", confirmPassword: "" })
-    onClose()
-  }
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        credentials: "include", // ✅ CHO PHÉP GỬI COOKIE
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          isLogin
+            ? { email: formData.email, password: formData.password }
+            : { email: formData.email, password: formData.password, name: formData.fullName }
+        ),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrors({ apiError: data.error || "Có lỗi xảy ra" });
+        return;
+      }
+
+      // ✅ Không lưu token nữa, vì cookie đã lưu giúp ta
+      onLoginSuccess({
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
+      });
+
+      setFormData({ email: "", password: "", fullName: "", confirmPassword: "" });
+      onClose();
+    } catch (err) {
+      setErrors({ apiError: "Không thể kết nối server" });
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -87,6 +115,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Full Name - Only for Signup */}
+          {errors.apiError && (
+            <p className="text-red-500 text-sm text-center">{errors.apiError}</p>
+          )}
           {!isLogin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Tên đầy đủ</label>
@@ -96,9 +127,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Nhập tên của bạn"
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${
-                  errors.fullName ? "border-red-500" : "border-gray-300"
-                }`}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${errors.fullName ? "border-red-500" : "border-gray-300"
+                  }`}
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
@@ -113,9 +143,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               value={formData.email}
               onChange={handleChange}
               placeholder="your@email.com"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${errors.email ? "border-red-500" : "border-gray-300"
+                }`}
             />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
@@ -130,9 +159,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition pr-10 ${
-                  errors.password ? "border-red-500" : "border-gray-300"
-                }`}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition pr-10 ${errors.password ? "border-red-500" : "border-gray-300"
+                  }`}
               />
               <button
                 type="button"
@@ -155,9 +183,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${
-                  errors.confirmPassword ? "border-red-500" : "border-gray-300"
-                }`}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition ${errors.confirmPassword ? "border-red-500" : "border-gray-300"
+                  }`}
               />
               {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
             </div>
@@ -177,7 +204,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             <button
               type="button"
               onClick={() => {
-                setIsLogin(!isLogin)
+                // setIsLogin(!isLogin)
                 setErrors({})
               }}
               className="text-indigo-600 font-semibold hover:underline"

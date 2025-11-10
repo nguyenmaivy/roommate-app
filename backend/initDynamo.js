@@ -5,10 +5,11 @@ import {
 } from "@aws-sdk/client-dynamodb";
 
 import pkg from "@aws-sdk/lib-dynamodb";
+import bcrypt from "bcryptjs";
 const { DynamoDBDocumentClient, PutCommand } = pkg;
 
 // ===== IMPORT MOCK DATA =====
-import { AMENITIES, MOCK_ROOMS, INITIAL_USER } from "../frontend/mockData.js";
+import { AMENITIES, MOCK_ROOMS } from "../frontend/mockData.js";
 
 // ===== CONFIG =====
 const client = new DynamoDBClient({
@@ -41,9 +42,9 @@ async function createUsersTable() {
   await client.send(
     new CreateTableCommand({
       TableName: "Users",
-      KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
-      AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
-      BillingMode: "PAY_PER_REQUEST",
+      KeySchema: [{ AttributeName: "email", KeyType: "HASH" }],
+      AttributeDefinitions: [{ AttributeName: "email", AttributeType: "S" }],
+      BillingMode: "PAY_PER_REQUEST"
     })
   );
   console.log("✅ Created table: Users");
@@ -51,7 +52,12 @@ async function createUsersTable() {
   await ddb.send(
     new PutCommand({
       TableName: "Users",
-      Item: INITIAL_USER,
+      Item: {
+        email: "phuhuynh.010104@gmail.com",        // ✅ Bắt buộc phải có key email
+        name: "Admin",
+        password: await bcrypt.hash("123456", 10),
+        role: "admin",
+      },
     })
   );
 

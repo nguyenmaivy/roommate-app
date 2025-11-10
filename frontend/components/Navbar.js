@@ -3,42 +3,46 @@
 import { useState, useEffect } from 'react';
 import { Home, User, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { getCurrentUser, signOut } from 'aws-amplify/auth';
+// import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { USER_ROLES, INITIAL_USER } from '@/mockData';
 import AuthModal from "./AuthModel"
 
 export default function Navbar() {
   const [user, setUser] = useState(INITIAL_USER)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState({ open: false, mode: "login" })
 
   useEffect(() => {
-    async function checkUser() {
+    async function fetchUser() {
       try {
-        const currentUser = await getCurrentUser()
+        const res = await fetch("http://localhost:3001/me", {
+          credentials: "include", // ✅ gửi cookie
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
         setUser({
-          id: currentUser.userId,
-          name: currentUser.username || "User",
-          role: USER_ROLES.STUDENT,
-        })
-        setIsLoggedIn(true)
-      } catch {
-        setUser(INITIAL_USER)
-        setIsLoggedIn(false)
-      }
+          id: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+        });
+        setIsLoggedIn(true);
+      } catch { }
     }
-    checkUser()
-  }, [])
+
+    fetchUser();
+  }, []);
 
   const handleLogout = async () => {
-    try {
-      await signOut()
-      setUser(INITIAL_USER)
-      setIsLoggedIn(false)
-    } catch (error) {
-      console.error("Logout error:", error)
-    }
-  }
+    await fetch("http://localhost:3001/logout", {
+      method: "POST",
+      credentials: "include", // ✅ gửi cookie để backend xoá
+    });
+
+    setUser(INITIAL_USER);
+    setIsLoggedIn(false);
+  };
 
   const handleLoginSuccess = (newUser) => {
     setUser(newUser)
@@ -84,13 +88,13 @@ export default function Navbar() {
                   Tìm Phòng
                 </Link>
                 <button
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={() => setShowAuthModal({ open: true, mode: "login" })}
                   className="px-4 py-2 text-sm font-medium text-indigo-600 border border-indigo-600 rounded hover:bg-indigo-50 transition"
                 >
                   Đăng nhập
                 </button>
                 <button
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={() => setShowAuthModal({ open: true, mode: "signup" })}
                   className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 transition"
                 >
                   Đăng ký
@@ -101,7 +105,12 @@ export default function Navbar() {
         </div>
       </header>
 
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onLoginSuccess={handleLoginSuccess} />
+      <AuthModal
+        isOpen={showAuthModal.open}
+        onClose={() => setShowAuthModal({ open: false, mode: "login" })}
+        onLoginSuccess={handleLoginSuccess}
+        mode={showAuthModal.mode}
+      />
     </>
   )
 }
