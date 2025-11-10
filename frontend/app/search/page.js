@@ -28,21 +28,23 @@ export default function SearchPage() {
     async function fetchRooms() {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`);
-        const data = await res.json();
-        const updatedRooms = await Promise.all(data.map(async room => {
-          const geoRes = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(room.location || room.address)}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`
-          );
-          const geoData = await geoRes.json();
-          return { ...room, locationCoords: geoData.features?.[0]?.center || [106.6297, 10.8231] };
+        const data = (await res.json()).rooms;
+
+        const updatedRooms = data.map(room => ({
+          ...room,
+          isFavorite: false, 
         }));
+        
         setRooms(updatedRooms);
-      } catch {
-        setRooms([]); // Fallback
+      } catch (error) {
+        console.error("❌ Error fetching rooms:", error);
+        setRooms([]);
       }
     }
+
     fetchRooms();
   }, []);
+
 
   const toggleFavorite = useCallback(async (roomId) => {
     const isFav = favorites.includes(roomId);
@@ -134,9 +136,8 @@ export default function SearchPage() {
                 <button
                   key={amenity.key}
                   onClick={() => handleAmenityFilter(amenity.key)}
-                  className={`flex items-center justify-center p-2 text-xs rounded-lg border transition ${
-                    filters.amenities.includes(amenity.key) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                  }`}
+                  className={`flex items-center justify-center p-2 text-xs rounded-lg border transition ${filters.amenities.includes(amenity.key) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                    }`}
                 >
                   <CheckCircle className="w-3 h-3 mr-1" /> {amenity.label}
                 </button>

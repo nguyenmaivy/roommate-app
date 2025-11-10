@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { Search, CheckCircle, Plus, UserIcon, Building, X, LayoutGrid } from "lucide-react"
 import RoomCard from "@/components/RoomCard"
 import RoomFormModal from "@/components/RoomFormModal"
@@ -42,7 +42,7 @@ interface Filters {
 
 export default function Home() {
   // State mô phỏng Dữ liệu từ DynamoDB
-  const [rooms, setRooms] = useState<Room[]>(MOCK_ROOMS.map((r) => ({ ...r, isFavorite: false })))
+  const [rooms, setRooms] = useState<Room[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
 
   // State mô phỏng Auth từ Cognito
@@ -66,6 +66,28 @@ export default function Home() {
 
   // State cho Modal Chat
   const [chatRoom, setChatRoom] = useState<Room | null>(null)
+
+  useEffect(() => {
+    async function fetchRooms() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`)
+        const data = (await res.json()).rooms
+
+        // đảm bảo dữ liệu có isFavorite để RoomCard dùng được
+        const formattedRooms = data.map((room: Room) => ({
+          ...room,
+          isFavorite: false,
+        }))
+
+        setRooms(formattedRooms)
+      } catch (error) {
+        console.error("❌ Error loading rooms:", error)
+        setRooms([]) // fallback
+      }
+    }
+
+    fetchRooms()
+  }, [])
 
   // --- HANDLERS DỮ LIỆU ---
 
@@ -95,41 +117,69 @@ export default function Home() {
   }, [])
 
   /** Xóa phòng trọ */
-  const handleDelete = useCallback((roomId: string) => {
-    // Thay thế bằng custom modal UI thay vì window.confirm
-    if (window.confirm("Bạn có chắc chắn muốn xóa phòng trọ này?")) {
-      // Thay thế bằng API DELETE đến API Gateway/Lambda
+  const handleDelete = useCallback(async (roomId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa phòng trọ này?")) return
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms/${roomId}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) throw new Error("Failed to delete")
+
+      // Xóa khỏi UI
       setRooms((prevRooms) => prevRooms.filter((room) => room.id !== roomId))
-      console.log(`[API MOCK] Đã gọi DELETE cho room ID: ${roomId}`)
+
+      console.log(`✅ [DELETE] room ID: ${roomId}`)
+    } catch (error) {
+      console.error("❌ Delete error:", error)
     }
   }, [])
 
+
   /** Lưu (Thêm/Sửa) phòng trọ */
   const handleSaveRoom = useCallback(
-    (roomData: any) => {
-      // Thay thế bằng API POST/PUT đến API Gateway/Lambda
-      if (editingRoom) {
-        // Cập nhật
-        setRooms((prevRooms) => prevRooms.map((r) => (r.id === roomData.id ? { ...r, ...roomData } : r)))
-        console.log(`[API MOCK] Đã gọi PUT (Sửa) cho room ID: ${roomData.id}`)
-      } else {
-        // Thêm mới
-        const newId = `r${Date.now()}`
-        const newRoom: Room = {
-          ...roomData,
-          id: newId,
-          landlordId: user.id, // Gán ID chủ trọ hiện tại
-          isFavorite: false,
-          price: Number(roomData.price),
-          area: Number(roomData.area),
+    async (roomData: any) => {
+      try {
+        // ✅ Nếu đang sửa (PUT)
+        if (editingRoom) {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms/${editingRoom.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(roomData),
+          })
+
+          if (!res.ok) throw new Error("Failed to update room")
+
+          // cập nhật lại UI không cần reload
+          setRooms((prevRooms) =>
+            prevRooms.map((r) => (r.id === editingRoom.id ? { ...r, ...roomData } : r)),
+          )
+
+          console.log(`✅ [PUT] Updated room ID: ${editingRoom.id}`)
         }
-        setRooms((prevRooms) => [newRoom, ...prevRooms])
-        // Mô phỏng n8n: Gửi thông báo khi có phòng mới
-        console.log(`[n8n MOCK] Kích hoạt workflow gửi email/Telegram thông báo phòng mới: ${newRoom.title}`)
-        console.log(`[API MOCK] Đã gọi POST (Thêm mới) cho room ID: ${newId}`)
+        // ✅ Nếu thêm mới (POST)
+        else {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(roomData),
+          })
+
+          if (!res.ok) throw new Error("Failed to create room")
+
+          const createdRoom = await res.json()
+
+          setRooms((prevRooms) => [createdRoom, ...prevRooms])
+
+          console.log(`✅ [POST] Created new room ID: ${createdRoom.id}`)
+        }
+      } catch (error) {
+        console.error("❌ Save room error:", error)
+      } finally {
+        setEditingRoom(null)
+        setShowFormModal(false)
       }
-      setEditingRoom(null)
-      setShowFormModal(false)
     },
     [editingRoom, user.id],
   )
@@ -293,11 +343,10 @@ export default function Home() {
                     <button
                       key={amenity.key}
                       onClick={() => handleAmenityFilter(amenity.key)}
-                      className={`flex items-center justify-center p-2 text-xs rounded-lg border transition ${
-                        filters.amenities.includes(amenity.key)
-                          ? "bg-indigo-500 text-white border-indigo-500"
-                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
-                      }`}
+                      className={`flex items-center justify-center p-2 text-xs rounded-lg border transition ${filters.amenities.includes(amenity.key)
+                        ? "bg-indigo-500 text-white border-indigo-500"
+                        : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                        }`}
                     >
                       <CheckCircle className="w-3 h-3 mr-1" /> {amenity.label}
                     </button>

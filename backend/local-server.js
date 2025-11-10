@@ -8,6 +8,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { createRoom, getRooms, getRoom, updateRoom, deleteRoom, __setDocumentClient as setRoomClient } from "./lambda/roomCrud.js";
 import { initChatRealtime, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
 import { Server } from "socket.io";
+import cors from "cors";
 import http from "http";
 
 const app = express();
@@ -16,6 +17,12 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 // Middleware
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+)
 app.use(bodyParser.json());
 app.use(cookieParser());
 
@@ -42,8 +49,20 @@ app.post("/login", async (req, res) => {
   res.set(response.headers || {}).status(response.statusCode).json(JSON.parse(response.body));
 });
 
+app.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: false,           // nếu deploy HTTPS thì đổi thành true
+    sameSite: "lax",         // ngăn CSRF cơ bản
+    path: "/",               // phải giống path lúc set cookie!
+  });
+
+  return res.status(200).json({ message: "Logged out successfully" });
+});
+
 // --- Middleware kiểm tra JWT ---
 import jwt from "jsonwebtoken";
+import { meUserHandler } from "./lambda/meUser.js";
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export const authMiddleware = (req, res, next) => {
@@ -58,6 +77,23 @@ export const authMiddleware = (req, res, next) => {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
+app.get("/me", async (req, res) => {
+  try {
+    console.log("Cookies:", req.cookies);  // ✅ kiểm tra cookie nhận từ browser
+
+    const response = await meUserHandler(req);
+
+    console.log("ME handler response:", response); // ✅ kiểm tra kết quả lambda
+
+    res
+      .set(response.headers || {})
+      .status(response.statusCode)
+      .json(JSON.parse(response.body));
+  } catch (err) {
+    console.error("🔥 ERROR in /me:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 // CREATE
 app.post("/rooms", async (req, res) => {
@@ -79,15 +115,19 @@ app.get("/rooms/:roomId", async (req, res) => {
 
 // UPDATE
 app.put("/rooms/:roomId", async (req, res) => {
-  const body = { ...req.body, roomId: req.params.roomId };
-  const response = await updateRoom({ body: JSON.stringify(body) });
-  res.status(response.statusCode).json(JSON.parse(response.body));
+  try {
+    const { roomId } = req.params;
+    const response = await updateRoom(roomId, req.body);
+
+    res.status(response.statusCode).json(JSON.parse(response.body));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE
 app.delete("/rooms/:roomId", async (req, res) => {
-  const body = { roomId: req.params.roomId };
-  const response = await deleteRoom({ body: JSON.stringify(body) });
+  const response = await deleteRoom({ params: req.params });
   res.status(response.statusCode).json(JSON.parse(response.body));
 });
 

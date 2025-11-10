@@ -21,38 +21,40 @@ export const handler = async (event) => {
       endpoint: "http://localhost:8000",
       credentials: { accessKeyId: "fake", secretAccessKey: "fake" },
     });
+
     ddb = DynamoDBDocumentClient.from(client);
   }
 
-  let body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+  const body = JSON.parse(event.body || "{}");
   const { email, password } = body;
 
   if (!email || !password) {
     return { statusCode: 400, body: JSON.stringify({ error: "Email and password required" }) };
   }
 
-  try {
-    const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { email } }));
-    const user = result.Item;
-    if (!user) return { statusCode: 404, body: JSON.stringify({ error: "User not found" }) };
+  const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { email } }));
+  const user = result.Item;
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return { statusCode: 401, body: JSON.stringify({ error: "Invalid password" }) };
-
-    // Tạo JWT
-    const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
-
-    // Trả về cookie HTTP-only
-    return {
-      statusCode: 200,
-      headers: {
-        "Set-Cookie": `token=${token}; HttpOnly; Path=/; Max-Age=3600`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: "Login successful", user: { email: user.email, name: user.name, role: user.role } }),
-    };
-  } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+  if (!user) {
+    return { statusCode: 404, body: JSON.stringify({ error: "User not found" }) };
   }
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) {
+    return { statusCode: 401, body: JSON.stringify({ error: "Invalid password" }) };
+  }
+
+  const token = jwt.sign({ email, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
+
+  return {
+    statusCode: 200,
+    headers: {
+      "Set-Cookie": `token=${token}; HttpOnly; Path=/; Max-Age=3600`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: "Login successful",
+      user: { name: user.name, email: user.email, role: user.role },
+    }),
+  };
 };

@@ -1,24 +1,20 @@
 import {
   DynamoDBClient,
   CreateTableCommand,
-  DeleteTableCommand
+  DeleteTableCommand,
 } from "@aws-sdk/client-dynamodb";
 
 import pkg from "@aws-sdk/lib-dynamodb";
-const {
-  DynamoDBDocumentClient,
-  PutCommand,
-  GetCommand,
-} = pkg;
+import bcrypt from "bcryptjs";
+const { DynamoDBDocumentClient, PutCommand } = pkg;
 
-// Config
-const DYNAMODB_ENDPOINT = process.env.DYNAMODB_ENDPOINT || "http://localhost:8000";
-const AWS_REGION = process.env.AWS_REGION || "us-east-1";
+// ===== IMPORT MOCK DATA =====
+import { AMENITIES, MOCK_ROOMS } from "../frontend/mockData.js";
 
-// Client for DynamoDB Local
+// ===== CONFIG =====
 const client = new DynamoDBClient({
-  region: AWS_REGION,
-  endpoint: DYNAMODB_ENDPOINT,
+  region: "us-east-1",
+  endpoint: "http://localhost:8000",
   credentials: {
     accessKeyId: "fake",
     secretAccessKey: "fake",
@@ -27,113 +23,110 @@ const client = new DynamoDBClient({
 
 const ddb = DynamoDBDocumentClient.from(client);
 
+// ===== UTIL: DELETE TABLE IF EXISTS =====
 async function deleteTableIfExists(tableName) {
   try {
     await client.send(new DeleteTableCommand({ TableName: tableName }));
-    console.log(`🗑️ Deleted existing table ${tableName}`);
+    console.log(`🗑️ Deleted table ${tableName}`);
   } catch (err) {
     if (err.name === "ResourceNotFoundException") {
-      console.log(`ℹ️ Table ${tableName} không tồn tại, không cần xóa`);
-    } else throw err;
+      console.log(`ℹ️ ${tableName} does not exist, skip delete.`);
+      return;
+    }
+    throw err;
   }
 }
 
+// ===== CREATE TABLE USERS =====
 async function createUsersTable() {
-  try {
-    await client.send(new CreateTableCommand({
+  await client.send(
+    new CreateTableCommand({
       TableName: "Users",
       KeySchema: [{ AttributeName: "email", KeyType: "HASH" }],
       AttributeDefinitions: [{ AttributeName: "email", AttributeType: "S" }],
-      BillingMode: "PAY_PER_REQUEST",
-    }));
-    console.log("✅ Created table Users");
-  } catch (err) {
-    if (err.name === "ResourceInUseException") {
-      console.log("ℹ️ Table Users exists, skipping create.");
-    } else throw err;
-  }
+      BillingMode: "PAY_PER_REQUEST"
+    })
+  );
+  console.log("✅ Created table: Users");
 
-  // Insert sample user
-  await ddb.send(new PutCommand({
-    TableName: "Users",
-    Item: {
-      email: "phuhuynh@test.com",
-      name: "Phu",
-      password: "123456",
-      role: "admin",
-    }
-  }));
-  console.log("✅ Inserted item into Users");
+  await ddb.send(
+    new PutCommand({
+      TableName: "Users",
+      Item: {
+        email: "phuhuynh.010104@gmail.com",        // ✅ Bắt buộc phải có key email
+        name: "Admin",
+        password: await bcrypt.hash("123456", 10),
+        role: "admin",
+      },
+    })
+  );
 
-  const result = await ddb.send(new GetCommand({
-    TableName: "Users",
-    Key: { email: "phuhuynh@test.com" }
-  }));
-  console.log("✅ Fetched item:", result.Item);
+  console.log("✅ Inserted INITIAL_USER");
 }
 
+// ===== CREATE TABLE ROOMS =====
 async function createRoomsTable() {
-  try {
-    await client.send(new CreateTableCommand({
+  await client.send(
+    new CreateTableCommand({
       TableName: "Rooms",
-      KeySchema: [{ AttributeName: "roomId", KeyType: "HASH" }],
-      AttributeDefinitions: [{ AttributeName: "roomId", AttributeType: "S" }],
+      KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
+      AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
       BillingMode: "PAY_PER_REQUEST",
-    }));
-    console.log("✅ Created table Rooms");
-  } catch (err) {
-    if (err.name === "ResourceInUseException") {
-      console.log("ℹ️ Table Rooms exists, skipping create.");
-    } else throw err;
+    })
+  );
+
+  console.log("✅ Created table: Rooms");
+
+  for (const room of MOCK_ROOMS) {
+    await ddb.send(
+      new PutCommand({
+        TableName: "Rooms",
+        Item: room,
+      })
+    );
   }
 
-  // Insert sample room
-  await ddb.send(new PutCommand({
-    TableName: "Rooms",
-    Item: {
-      roomId: "r001",
-      title: "Phòng trọ mới Quận 1",
-      price: "5.000.000 VNĐ/tháng",
-      district: "Quận 1",
-      city: "TP.HCM",
-      area: "25 m²",
-      amenities: ["Wifi", "Máy lạnh", "Bếp"]
-    }
-  }));
-  console.log("✅ Inserted item into Rooms");
-
-  const result = await ddb.send(new GetCommand({
-    TableName: "Rooms",
-    Key: { roomId: "r001" }
-  }));
-  console.log("✅ Fetched item:", result.Item);
+  console.log("✅ Inserted MOCK_ROOMS into Rooms");
 }
 
-async function createMessagesTable() {
-  try {
-    await client.send(new CreateTableCommand({
-      TableName: "Messages",
-      KeySchema: [{ AttributeName: "messageId", KeyType: "HASH" }],
-      AttributeDefinitions: [{ AttributeName: "messageId", AttributeType: "S" }],
+// ===== CREATE TABLE AMENITIES =====
+async function createAmenitiesTable() {
+  await client.send(
+    new CreateTableCommand({
+      TableName: "Amenities",
+      KeySchema: [{ AttributeName: "key", KeyType: "HASH" }],
+      AttributeDefinitions: [{ AttributeName: "key", AttributeType: "S" }],
       BillingMode: "PAY_PER_REQUEST",
-    }));
-    console.log("✅ Created table Messages");
-  } catch (err) {
-    if (err.name === "ResourceInUseException") {
-      console.log("ℹ️ Table Messages exists, skipping create.");
-    } else throw err;
+    })
+  );
+
+  console.log("✅ Created table: Amenities");
+
+  for (const amenity of AMENITIES) {
+    await ddb.send(
+      new PutCommand({
+        TableName: "Amenities",
+        Item: amenity,
+      })
+    );
   }
+
+  console.log("✅ Inserted AMENITIES into Amenities table");
 }
 
-async function run() {
-  // Xóa table trước khi tạo
-  // await deleteTableIfExists("Users");
-  // await deleteTableIfExists("Rooms");
+// ===== RUN ALL =====
+async function initDB() {
+  console.log("🚀 Initializing DynamoDB Local...");
 
-  // Tạo table + insert sample
+  await deleteTableIfExists("Users");
+  await deleteTableIfExists("Rooms");
+  await deleteTableIfExists("Amenities");
+
   await createUsersTable();
   await createRoomsTable();
-  await createMessagesTable();
+  await createAmenitiesTable();
+
+  console.log("🎉 All tables created and mock data inserted.");
 }
 
-run().catch(console.error);
+initDB().catch(console.error);
