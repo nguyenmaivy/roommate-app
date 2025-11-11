@@ -65,7 +65,7 @@ export default function Home() {
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
 
   // State cho Modal Chat
-  const [chatRoom, setChatRoom] = useState<Room | null>(null)
+  const [chatRoom, setChatRoom] = useState(null)
 
   useEffect(() => {
     async function fetchRooms() {
@@ -423,7 +423,15 @@ export default function Home() {
                     toggleFavorite={toggleFavorite}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
-                    onChat={setChatRoom}
+                    onChat={() => {
+                      const chatRoomId = `${room.id}_${user.id}`;   // ✅ tạo roomId unique
+                      setChatRoom({
+                        roomId: chatRoomId,
+                        landlordId: room.landlordId,
+                        studentId: user.id,
+                        roomTitle: room.title,
+                      });
+                    }}
                   />
                 ))
               ) : (

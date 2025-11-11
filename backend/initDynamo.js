@@ -114,6 +114,31 @@ async function createAmenitiesTable() {
   console.log("✅ Inserted AMENITIES into Amenities table");
 }
 
+// ===== CREATE TABLE MESSAGES =====
+// ===== CREATE TABLE MESSAGES =====
+async function createMessagesTable() {
+  try {
+    await client.send(
+      new CreateTableCommand({
+        TableName: "Messages",
+        KeySchema: [
+          { AttributeName: "roomId", KeyType: "HASH" },
+          { AttributeName: "createdAt", KeyType: "RANGE" },
+        ],
+        AttributeDefinitions: [
+          { AttributeName: "roomId", AttributeType: "S" },
+          { AttributeName: "createdAt", AttributeType: "N" },
+        ],
+        BillingMode: "PAY_PER_REQUEST",
+      })
+    );
+
+    console.log("✅ Created table: Messages");
+  } catch (err) {
+    console.error("❌ Error creating Messages table:", err);
+  }
+}
+
 // ===== RUN ALL =====
 async function initDB() {
   console.log("🚀 Initializing DynamoDB Local...");
@@ -121,11 +146,11 @@ async function initDB() {
   await deleteTableIfExists("Users");
   await deleteTableIfExists("Rooms");
   await deleteTableIfExists("Amenities");
-
+  await deleteTableIfExists("Messages");
   await createUsersTable();
   await createRoomsTable();
   await createAmenitiesTable();
-
+  await createMessagesTable();
   console.log("🎉 All tables created and mock data inserted.");
 }
 

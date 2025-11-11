@@ -6,7 +6,7 @@ import { handler as loginUserHandler, __setDocumentClient as setLoginClient } fr
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { createRoom, getRooms, getRoom, updateRoom, deleteRoom, __setDocumentClient as setRoomClient } from "./lambda/roomCrud.js";
-import { initChatRealtime, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
+import { initChatRealtime, getMessages, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
 import { Server } from "socket.io";
 import cors from "cors";
 import http from "http";
@@ -130,6 +130,11 @@ app.delete("/rooms/:roomId", async (req, res) => {
   const response = await deleteRoom({ params: req.params });
   res.status(response.statusCode).json(JSON.parse(response.body));
 });
+app.get("/messages/:roomId", async (req, res) => {
+  const response = await getMessages(req);    // <-- sử dụng hàm đã export
+  res.status(response.statusCode).json(JSON.parse(response.body));
+});
+
 
 // --- Example route bảo vệ ---
 app.get("/profile", authMiddleware, (req, res) => {
