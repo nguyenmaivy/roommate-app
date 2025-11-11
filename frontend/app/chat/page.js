@@ -1,58 +1,19 @@
 // app/chat/page.js
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
 import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, User, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { USER_ROLES } from '@/mockData';
+import { useUser } from '../Store/UserContext';
+import { io } from "socket.io-client";
 
-const MOCK_CHATS = [
-  {
-    id: 'chat1',
-    roomId: 'r1',
-    roomTitle: 'Phòng trọ mới Quận 1',
-    otherUser: { id: 'L1', name: 'Trần Văn B (Chủ trọ)', role: USER_ROLES.LANDLORD },
-    lastMessage: 'Có sẵn phòng không ạ?',
-    lastTime: new Date(Date.now() - 1000 * 60 * 5),
-    unread: 2,
-  },
-  {
-    id: 'chat2',
-    roomId: 'r3',
-    roomTitle: 'Căn hộ mini Full nội thất',
-    otherUser: { id: 'L1', name: 'Trần Văn B (Chủ trọ)', role: USER_ROLES.LANDLORD },
-    lastMessage: 'Em muốn xem phòng vào thứ 7 được không?',
-    lastTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    unread: 0,
-  },
-  {
-    id: 'chat3',
-    roomId: 'r2',
-    roomTitle: 'Studio giá rẻ gần ĐH Sài Gòn',
-    otherUser: { id: 'L2', name: 'Lê Thị C (Chủ trọ)', role: USER_ROLES.LANDLORD },
-    lastMessage: 'Dạ còn phòng ạ',
-    lastTime: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    unread: 1,
-  },
-];
-
-const MOCK_MESSAGES = {
-  chat1: [
-    { id: 'm1', senderId: 'U1', text: 'Chào anh, phòng còn không ạ?', time: new Date(Date.now() - 1000 * 60 * 30) },
-    { id: 'm2', senderId: 'L1', text: 'Còn em ơi, anh gửi hình thêm nhé', time: new Date(Date.now() - 1000 * 60 * 25) },
-    { id: 'm3', senderId: 'U1', text: 'Dạ anh gửi giúp em với ạ', time: new Date(Date.now() - 1000 * 60 * 20) },
-    { id: 'm4', senderId: 'L1', text: 'Có sẵn phòng không ạ?', time: new Date(Date.now() - 1000 * 60 * 5), isOwn: true },
-  ],
-  chat2: [
-    { id: 'm5', senderId: 'U1', text: 'Chị ơi em muốn xem phòng vào thứ 7 được không?', time: new Date(Date.now() - 1000 * 60 * 60 * 3) },
-    { id: 'm6', senderId: 'L1', text: 'Được em, chị ở đó cả ngày', time: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-  ],
-};
-
+const socket = io(process.env.NEXT_PUBLIC_API_URL, {
+  transports: ["websocket"],
+});
 export default function ChatPage() {
-  const [user] = useState({ id: 'U1', name: 'Nguyễn Văn A', role: USER_ROLES.STUDENT });
-  const [chats, setChats] = useState(MOCK_CHATS);
+  const { user, setUser } = useUser();
+  const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -63,79 +24,106 @@ export default function ChatPage() {
   const messagesEndRef = useRef(null);
   const shouldScrollRef = useRef(false);
 
+  useEffect(() => {
+    async function fetchChats() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chats`, {
+          method: "GET",
+          credentials: "include",
+        }); // gọi API
+        const data = await res.json();
+
+        // convert lastTime về Date để format HH:mm được
+        const parsed = data.map(chat => ({
+          ...chat,
+          lastTime: new Date(chat.lastTime),
+        }));
+
+        setChats(parsed);
+      } catch (error) {
+        console.error("Lỗi khi tải danh sách chat:", error);
+      }
+    }
+
+    fetchChats();
+  }, []);
+
   // load messages when selecting chat
   useEffect(() => {
-    if (selectedChat) {
-      setMessages(MOCK_MESSAGES[selectedChat.id] ? [...MOCK_MESSAGES[selectedChat.id]] : []);
-      // request a scroll after messages are rendered
-      shouldScrollRef.current = true;
-    } else {
-      setMessages([]);
-    }
-  }, [selectedChat]);
+    if (!selectedChat) return;
 
-  // when messages change we will do scroll in useLayoutEffect for reliability
-  useLayoutEffect(() => {
-    if (!shouldScrollRef.current) return;
+    fetchMessages();
 
-    const container = messagesContainerRef.current;
-    const end = messagesEndRef.current;
-
-    if (!container) {
-      shouldScrollRef.current = false;
-      return;
-    }
-
-    const doScroll = (behavior = 'auto') => {
-      try {
-        // primary: scroll container to bottom
-        container.scrollTo({ top: container.scrollHeight, behavior });
-        // fallback: scroll the end marker into view
-        if (end) end.scrollIntoView({ behavior, block: 'end' });
-      } catch (e) {
-        container.scrollTop = container.scrollHeight;
-      } finally {
-        shouldScrollRef.current = false;
-      }
-    };
-
-    // Give one frame for DOM layout (helps with fonts/images)
-    requestAnimationFrame(() => {
-      // tiny delay to ensure child layout finished
-      setTimeout(() => doScroll('smooth'), 20);
-    });
-  }, [messages, selectedChat]);
-
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedChat) return;
-
-    const msg = {
-      id: `m${Date.now()}`,
-      senderId: user.id,
-      text: newMessage,
-      time: new Date(),
-      isOwn: true,
-    };
-
-    setMessages(prev => [...prev, msg]);
-    setNewMessage('');
-    // request auto-scroll after sending
     shouldScrollRef.current = true;
 
-    // update last message in chats
-    setChats(prev =>
-      prev.map(chat =>
-        chat.id === selectedChat.id
-          ? { ...chat, lastMessage: newMessage, lastTime: new Date(), unread: 0 }
-          : chat
-      )
-    );
+    // 🔥 Join socket room
+    socket.emit("joinRoom", selectedChat.roomId);
+
+    // 🔥 Nhận tin nhắn realtime
+    const handleNewMessage = (message) => {
+      // chỉ xử lý nếu đúng room
+      if (message.roomId !== selectedChat.roomId) return;
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: message.messageId,
+          text: message.text,
+          sender: message.sender,
+          time: new Date(message.createdAt),
+          isOwn: message.sender === user.id,
+        }
+      ]);
+
+      shouldScrollRef.current = true;
+    };
+
+    socket.on("newMessage", handleNewMessage);
+
+    // cleanup khi chuyển sang room khác (tránh duplicate listener)
+    return () => socket.off("newMessage", handleNewMessage);
+
+  }, [selectedChat]);
+
+  async function fetchMessages() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/${selectedChat.roomId}`, {
+        credentials: "include",
+      });
+
+      const data = (await res.json()).messages;
+
+      setMessages(
+        data.map(msg => ({
+          id: msg.messageId,
+          text: msg.text,
+          sender: msg.senderId,
+          time: new Date(msg.createdAt),
+          isOwn: msg.senderId === user.id,
+        }))
+      );
+    } catch (error) {
+      console.error("Lỗi khi tải tin nhắn:", error);
+    }
+  }
+  // when messages change we will do scroll in useLayoutEffect for reliability
+  const sendMessage = () => {
+    if (!newMessage.trim() || !selectedChat) return;
+    const messageData = {
+      roomId: selectedChat.roomId,
+      sender: user.id,
+      receiver: selectedChat.otherUserId, 
+      text: newMessage.trim(),
+    };
+    
+    socket.emit("sendMessage", messageData);
+
+    // reset input
+    setNewMessage('');
+    shouldScrollRef.current = true;
   };
 
-  const filteredChats = chats.filter(chat =>
-    chat.roomTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.otherUser.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChats = chats.filter(chat => chat.title?.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
@@ -173,11 +161,11 @@ export default function ChatPage() {
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                    {chat.otherUser.name.charAt(0)}
+                    {chat?.title?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
-                      <h3 className="font-semibold text-gray-900 truncate">{chat.roomTitle}</h3>
+                      <h3 className="font-semibold text-gray-900 truncate">{chat.title}</h3>
                       <span className="text-xs text-gray-500 ml-2">
                         {format(chat.lastTime, 'HH:mm')}
                       </span>
@@ -214,7 +202,7 @@ export default function ChatPage() {
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {selectedChat.otherUser.name.charAt(0)}
+                  {selectedChat.title.charAt(0)}
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-900">{selectedChat.roomTitle}</h2>
@@ -239,13 +227,13 @@ export default function ChatPage() {
               {messages.map(msg => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.senderId === user.id ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.isOwn ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
                   >
                     <p className="text-sm">{msg.text}</p>
-                    <p className={`text-xs mt-1 ${msg.senderId === user.id ? 'text-indigo-200' : 'text-gray-500'}`}>
+                    <p className={`text-xs mt-1 ${msg.isOwn ? 'text-indigo-200' : 'text-gray-500'}`}>
                       {format(msg.time, 'HH:mm')}
                     </p>
                   </div>

@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { Home, User, LogOut } from 'lucide-react';
 import Link from 'next/link';
 // import { getCurrentUser, signOut } from 'aws-amplify/auth';
-import { USER_ROLES, INITIAL_USER } from '@/mockData';
+// import { USER_ROLES, INITIAL_USER } from '@/mockData';
 import AuthModal from "./AuthModel"
+import { useUser } from '@/app/Store/UserContext';
 
 export default function Navbar() {
-  const [user, setUser] = useState(INITIAL_USER)
+  const { user, setUser } = useUser();
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState({ open: false, mode: "login" })
-
   useEffect(() => {
     async function fetchUser() {
       try {
@@ -40,7 +40,7 @@ export default function Navbar() {
       credentials: "include", // ✅ gửi cookie để backend xoá
     });
 
-    setUser(INITIAL_USER);
+    setUser({});
     setIsLoggedIn(false);
   };
 

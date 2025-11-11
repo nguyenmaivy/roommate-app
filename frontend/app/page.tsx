@@ -7,7 +7,8 @@ import { Search, CheckCircle, Plus, UserIcon, Building, X, LayoutGrid } from "lu
 import RoomCard from "@/components/RoomCard"
 import RoomFormModal from "@/components/RoomFormModal"
 import ChatModal from "@/components/ChatModal"
-import { AMENITIES, USER_ROLES, MOCK_ROOMS } from "@/mockData"
+import { useUser } from "./Store/UserContext"
+import { AMENITIES } from "@/mockData"
 
 interface Room {
   id: string
@@ -24,11 +25,6 @@ interface Room {
   isFavorite: boolean
 }
 
-interface AppUser {
-  id: string
-  name?: string
-  role: string
-}
 
 interface Filters {
   location: string
@@ -39,16 +35,15 @@ interface Filters {
   amenities: string[]
   showFavorites: boolean
 }
-
+const USER_ROLES = {
+  STUDENT: "STUDENT",
+  LANDLORD: "LANDLORD",
+};
 export default function Home() {
-  // State mô phỏng Dữ liệu từ DynamoDB
+  const { user, setUser } = useUser();
   const [rooms, setRooms] = useState<Room[]>([])
   const [favorites, setFavorites] = useState<string[]>([])
-
-  // State mô phỏng Auth từ Cognito
-  const [user, setUser] = useState<AppUser>({ id: "U1", role: USER_ROLES.STUDENT })
-  const isLandlord = user.role === USER_ROLES.LANDLORD
-
+  const isLandlord = user?.role === USER_ROLES.LANDLORD;
   // State cho Thanh tìm kiếm/lọc
   const [filters, setFilters] = useState<Filters>({
     location: "",
@@ -181,7 +176,7 @@ export default function Home() {
         setShowFormModal(false)
       }
     },
-    [editingRoom, user.id],
+    [editingRoom, user?.id],
   )
 
   /** Lọc dữ liệu phòng trọ */
@@ -218,13 +213,13 @@ export default function Home() {
       if (filters.showFavorites && !favorites.includes(room.id)) {
         return false
       }
-      // Nếu là Chủ trọ, chỉ hiển thị phòng của mình
-      if (isLandlord && room.landlordId !== user.id) {
-        return false
+      // Nếu là Chủ trọ, chỉ hiển thị phòng của mình còn không thì ngược lại
+      if ((isLandlord && room.landlordId !== user?.id) || (!isLandlord && room.landlordId === user?.id)) {
+        return false;
       }
       return true
     })
-  }, [rooms, filters, favorites, isLandlord, user.id])
+  }, [rooms, filters, favorites, user?.id])
 
   // --- UI CONTROLS ---
 
@@ -254,14 +249,13 @@ export default function Home() {
     })
   }
 
-  const handleSwitchUser = () => {
-    // Mô phỏng đăng nhập/đăng xuất Cognito
-    if (user.role === USER_ROLES.STUDENT) {
-      setUser({ id: "L1", name: "Trần Văn B (Chủ trọ)", role: USER_ROLES.LANDLORD })
-    } else {
-      setUser({ id: "U1", name: "Nguyễn Văn A (Sinh viên)", role: USER_ROLES.STUDENT })
-    }
-    // Reset filters khi đổi vai trò
+  const handleSwitchUser = async () => {
+    const res = await fetch("http://localhost:3001/switch-role", {
+      method: "POST",
+      credentials: "include",
+    });
+    const data = await res.json();
+    setUser((prev) => ({ ...prev, role: data.role }));
     handleClearFilters()
   }
 
@@ -355,7 +349,7 @@ export default function Home() {
               </div>
 
               {/* Lọc theo Favorite (Chỉ Sinh viên) */}
-              {user.role === USER_ROLES.STUDENT && (
+              {user?.role === USER_ROLES.STUDENT && (
                 <div className="mb-6">
                   <label className="flex items-center text-sm font-medium text-gray-700">
                     <input
@@ -381,7 +375,7 @@ export default function Home() {
                 onClick={handleSwitchUser}
                 className="w-full mt-4 py-2 text-sm bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition font-medium border border-indigo-300 flex items-center justify-center"
               >
-                <UserIcon className="w-4 h-4 mr-1" /> Đổi vai trò ({user.role})
+                <UserIcon className="w-4 h-4 mr-1" /> Đổi vai trò ({user?.role})
               </button>
             </div>
           </div>
@@ -418,17 +412,17 @@ export default function Home() {
                   <RoomCard
                     key={room.id}
                     room={room}
-                    currentUserId={user.id}
-                    userRole={user.role}
+                    currentUserId={user?.id}
+                    userRole={user?.role}
                     toggleFavorite={toggleFavorite}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onChat={() => {
-                      const chatRoomId = `${room.id}_${user.id}`;   // ✅ tạo roomId unique
+                      const chatRoomId = `${room.id}_${user?.id}`;   // ✅ tạo roomId unique
                       setChatRoom({
                         roomId: chatRoomId,
                         landlordId: room.landlordId,
-                        studentId: user.id,
+                        studentId: user?.id,
                         roomTitle: room.title,
                       });
                     }}

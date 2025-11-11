@@ -71,7 +71,7 @@ export default function ChatModal({ room, onClose }) {
         <div className="p-4 border-b bg-indigo-500 text-white rounded-t-xl flex justify-between items-center">
           <h3 className="font-bold flex items-center">
             <MessageSquare className="w-5 h-5 mr-2" />
-            Chat với chủ phòng
+            {room.roomTitle || "Phòng chat"}
           </h3>
           <button onClick={onClose} className="hover:text-gray-200">
             <X className="w-5 h-5" />
@@ -86,11 +86,10 @@ export default function ChatModal({ room, onClose }) {
               className={`flex ${msg.sender === room.studentId ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-xs px-4 py-2 rounded-xl text-sm ${
-                  msg.sender === room.studentId
+                className={`max-w-xs px-4 py-2 rounded-xl text-sm ${msg.sender === room.studentId
                     ? "bg-indigo-600 text-white rounded-br-none"
                     : "bg-gray-200 text-gray-800 rounded-tl-none"
-                }`}
+                  }`}
               >
                 {msg.text}
               </div>
