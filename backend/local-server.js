@@ -6,10 +6,16 @@ import { handler as loginUserHandler, __setDocumentClient as setLoginClient } fr
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { createRoom, getRooms, getRoom, updateRoom, deleteRoom, __setDocumentClient as setRoomClient } from "./lambda/roomCrud.js";
-import { initChatRealtime, getMessages, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
+import { initChatRealtime, getMessages, getUserChats, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
+import { switchRoleHandler, __setDocumentClient as setSwitchRole } from "./lambda/switchRole.js";
 import { Server } from "socket.io";
 import cors from "cors";
 import http from "http";
+
+// --- Middleware kiểm tra JWT ---
+import jwt from "jsonwebtoken";
+import { meUserHandler } from "./lambda/meUser.js";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 const app = express();
 const port = 3001;
@@ -33,7 +39,7 @@ setRegisterClient(ddb);
 setLoginClient(ddb);
 setRoomClient(ddb);
 setChatClient(ddb);
-
+setSwitchRole(ddb);
 // --- Register ---
 app.post("/register", async (req, res) => {
   const event = { body: JSON.stringify(req.body) };
@@ -60,10 +66,7 @@ app.post("/logout", (req, res) => {
   return res.status(200).json({ message: "Logged out successfully" });
 });
 
-// --- Middleware kiểm tra JWT ---
-import jwt from "jsonwebtoken";
-import { meUserHandler } from "./lambda/meUser.js";
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+
 
 export const authMiddleware = (req, res, next) => {
   const token = req.cookies.token;
@@ -79,12 +82,7 @@ export const authMiddleware = (req, res, next) => {
 };
 app.get("/me", async (req, res) => {
   try {
-    console.log("Cookies:", req.cookies);  // ✅ kiểm tra cookie nhận từ browser
-
     const response = await meUserHandler(req);
-
-    console.log("ME handler response:", response); // ✅ kiểm tra kết quả lambda
-
     res
       .set(response.headers || {})
       .status(response.statusCode)
@@ -133,6 +131,38 @@ app.delete("/rooms/:roomId", async (req, res) => {
 app.get("/messages/:roomId", async (req, res) => {
   const response = await getMessages(req);    // <-- sử dụng hàm đã export
   res.status(response.statusCode).json(JSON.parse(response.body));
+});
+app.get("/chats", async (req, res) => {
+  try {
+    let email;
+
+    const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
+    email = decoded.email;  // email là PK trong bảng Users
+
+    if (!email) {
+      return res.status(400).json({ error: "email required" });
+    }
+
+    const chats = await getUserChats(email);
+    res.json(chats);
+  } catch (err) {
+    console.error("/chats error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/switch-role", authMiddleware, async (req, res) => {
+  try {
+    const response = await switchRoleHandler(req);
+
+    res
+      .set(response.headers || {})
+      .status(response.statusCode)
+      .send(response.body);
+  } catch (err) {
+    console.error("🔥 ERROR in /switch-role:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 
