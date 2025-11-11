@@ -24,6 +24,3 @@ export async function POST(request) {
   // Giả lập tạo mới: trả về id giả và data đã gửi
   return NextResponse.json({ message: 'Mock create ok', id: 'mock-id', data: body });
 }
-
-
-
