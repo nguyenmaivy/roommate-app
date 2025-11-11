@@ -1,7 +1,7 @@
 // app/chat/page.js
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, User, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -57,54 +57,39 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // New refs
-  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const shouldScrollRef = useRef(false);
 
-  // load messages when selecting chat
+
+  useEffect(() => {
+    // khi component mount (vào page/chat) -> tắt scroll body
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      // khi rời page/chat -> restore
+      document.body.style.overflow = prev || '';
+    };
+  }, []);
+
   useEffect(() => {
     if (selectedChat) {
-      setMessages(MOCK_MESSAGES[selectedChat.id] ? [...MOCK_MESSAGES[selectedChat.id]] : []);
-      // request a scroll after messages are rendered
+      setMessages(MOCK_MESSAGES[selectedChat.id] || []);
       shouldScrollRef.current = true;
-    } else {
-      setMessages([]);
     }
   }, [selectedChat]);
 
-  // when messages change we will do scroll in useLayoutEffect for reliability
-  useLayoutEffect(() => {
-    if (!shouldScrollRef.current) return;
-
-    const container = messagesContainerRef.current;
-    const end = messagesEndRef.current;
-
-    if (!container) {
+  useEffect(() => {
+    if (shouldScrollRef.current) {
+      scrollToBottom();
+      // reset flag để không auto-scroll cho mọi thay đổi messages tiếp theo
       shouldScrollRef.current = false;
-      return;
     }
+  }, [messages]);
 
-    const doScroll = (behavior = 'auto') => {
-      try {
-        // primary: scroll container to bottom
-        container.scrollTo({ top: container.scrollHeight, behavior });
-        // fallback: scroll the end marker into view
-        if (end) end.scrollIntoView({ behavior, block: 'end' });
-      } catch (e) {
-        container.scrollTop = container.scrollHeight;
-      } finally {
-        shouldScrollRef.current = false;
-      }
-    };
-
-    // Give one frame for DOM layout (helps with fonts/images)
-    requestAnimationFrame(() => {
-      // tiny delay to ensure child layout finished
-      setTimeout(() => doScroll('smooth'), 20);
-    });
-  }, [messages, selectedChat]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const sendMessage = () => {
     if (!newMessage.trim() || !selectedChat) return;
@@ -119,10 +104,9 @@ export default function ChatPage() {
 
     setMessages(prev => [...prev, msg]);
     setNewMessage('');
-    // request auto-scroll after sending
     shouldScrollRef.current = true;
 
-    // update last message in chats
+    // Cập nhật last message trong danh sách chat
     setChats(prev =>
       prev.map(chat =>
         chat.id === selectedChat.id
@@ -130,6 +114,7 @@ export default function ChatPage() {
           : chat
       )
     );
+
   };
 
   const filteredChats = chats.filter(chat =>
@@ -169,7 +154,8 @@ export default function ChatPage() {
                   setSelectedChat(chat);
                   setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unread: 0 } : c));
                 }}
-                className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition ${selectedChat?.id === chat.id ? 'bg-indigo-50' : ''}`}
+                className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition ${selectedChat?.id === chat.id ? 'bg-indigo-50' : ''
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -235,14 +221,17 @@ export default function ChatPage() {
             </div>
 
             {/* Tin nhắn */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={messagesContainerRef}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map(msg => (
                 <div
                   key={msg.id}
                   className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.senderId === user.id ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.senderId === user.id
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-800 border border-gray-200'
+                      }`}
                   >
                     <p className="text-sm">{msg.text}</p>
                     <p className={`text-xs mt-1 ${msg.senderId === user.id ? 'text-indigo-200' : 'text-gray-500'}`}>
