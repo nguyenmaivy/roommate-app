@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import Navbar from "@/components/Navbar"
-import Footer from "@/components/Footer"
+import ConditionalFooter from '@/components/ConditionalFooter';
 import "./globals.css"
 import { UserProvider } from "./Store/UserContext"
 
@@ -28,7 +28,7 @@ export default function RootLayout({
           <Navbar />
           {children}
         </UserProvider>
-        <Footer />
+        <ConditionalFooter />
         <Analytics />
       </body>
     </html>
