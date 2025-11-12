@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 import { MessageSquare, X } from "lucide-react";
+import { useUser } from "@/app/Store/UserContext";
 
 // Kết nối socket 1 lần (singleton)
 const socket = io(process.env.NEXT_PUBLIC_API_URL, {
@@ -10,8 +11,7 @@ const socket = io(process.env.NEXT_PUBLIC_API_URL, {
 });
 
 export default function ChatModal({ room, onClose }) {
-  console.log("💬 Opening chat modal for room:", room);
-
+  const { user } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);
@@ -19,8 +19,10 @@ export default function ChatModal({ room, onClose }) {
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  // 🔥 Lần đầu mở modal → join room + load history
   useEffect(() => {
     if (!room?.roomId) return;
 
@@ -31,19 +33,22 @@ export default function ChatModal({ room, onClose }) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/${room.roomId}`)
       .then((res) => res.json())
       .then((data) => {
-        setMessages(data.messages || []);
-        scrollToBottom();
+        setMessages(data.messages.map(msg => ({
+          ...msg,
+          isOwn: msg.senderId === user.id,
+        })) || []);
       })
       .catch((err) => console.error("❌ Fetch messages error:", err));
 
-    // ✅ Lắng nghe tin nhắn mới từ socket
     socket.on("newMessage", (message) => {
-      setMessages((prev) => [...prev, message]);
-      scrollToBottom();
+      setMessages((prev) => [...prev, {
+        ...message,
+        isOwn: message.sender == user.id,
+      }]);
     });
 
     return () => {
-      socket.off("newMessage"); // cleanup listener
+      socket.off("newMessage");
     };
   }, [room.roomId]);
 
@@ -54,15 +59,14 @@ export default function ChatModal({ room, onClose }) {
 
     const messageData = {
       roomId: room.roomId,
-      sender: room.studentId,     // ✅ user đang chat (student)
-      receiver: room.landlordId,  // ✅ chủ phòng
+      sender: room.studentId,    
+      receiver: room.landlordId,
       text: input.trim(),
     };
 
     socket.emit("sendMessage", messageData);
     setInput("");
   };
-
   return (
     <div className="fixed inset-0 bg-black/35 flex items-center justify-end z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm h-full max-h-[80vh] flex flex-col">
@@ -83,12 +87,12 @@ export default function ChatModal({ room, onClose }) {
           {messages.map((msg) => (
             <div
               key={msg.messageId || msg.createdAt}
-              className={`flex ${msg.sender === room.studentId ? "justify-end" : "justify-start"}`}
+              className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-xs px-4 py-2 rounded-xl text-sm ${msg.sender === room.studentId
-                    ? "bg-indigo-600 text-white rounded-br-none"
-                    : "bg-gray-200 text-gray-800 rounded-tl-none"
+                className={`max-w-xs px-4 py-2 rounded-xl text-sm ${msg.isOwn
+                  ? "bg-indigo-600 text-white rounded-br-none"
+                  : "bg-gray-200 text-gray-800 rounded-tl-none"
                   }`}
               >
                 {msg.text}

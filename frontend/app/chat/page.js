@@ -1,7 +1,7 @@
 // app/chat/page.js
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
 import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, User, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -12,14 +12,18 @@ const socket = io(process.env.NEXT_PUBLIC_API_URL, {
   transports: ["websocket"],
 });
 export default function ChatPage() {
-  const { user, setUser } = useUser();
+  const { user } = useUser();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const messagesEndRef = useRef(null);
-  const shouldScrollRef = useRef(false);
+
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     async function fetchChats() {
@@ -45,89 +49,71 @@ export default function ChatPage() {
     fetchChats();
   }, []);
 
-
   useEffect(() => {
-    // khi component mount (vào page/chat) -> tắt scroll body
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (!selectedChat) return;
 
-    return () => {
-      // khi rời page/chat -> restore
-      document.body.style.overflow = prev || '';
+    fetchMessages();
+    socket.emit("joinRoom", selectedChat.roomId);
+    //Xử lý tin nhắn mới
+    const handleNewMessage = (message) => {
+      if (message.roomId !== selectedChat.roomId) return;
+      setMessages(prev => [
+        ...prev,
+        {
+          id: message.messageId,
+          text: message.text,
+          sender: message.sender,
+          time: new Date(message.createdAt),
+          isOwn: message.sender === user.id,
+        }
+      ]);
+
     };
-  }, []);
+    socket.on("newMessage", handleNewMessage);
 
-  useEffect(() => {
-    if (selectedChat) {
-      setMessages(MOCK_MESSAGES[selectedChat.id] ? [...MOCK_MESSAGES[selectedChat.id]] : []);
-      // request a scroll after messages are rendered
-      shouldScrollRef.current = true;
-    } else {
-      setMessages([]);
-    }
+    // cleanup khi chuyển sang room khác (tránh duplicate listener)
+    return () => socket.off("newMessage", handleNewMessage);
+
   }, [selectedChat]);
 
-  // when messages change we will do scroll in useLayoutEffect for reliability
-  useLayoutEffect(() => {
-    if (!shouldScrollRef.current) return;
+  async function fetchMessages() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/${selectedChat.roomId}`, {
+        credentials: "include",
+      });
 
-    const container = messagesContainerRef.current;
-    const end = messagesEndRef.current;
+      const data = (await res.json()).messages;
 
-    if (!container) {
-      shouldScrollRef.current = false;
-      return;
+      setMessages(
+        data.map(msg => ({
+          id: msg.messageId,
+          text: msg.text,
+          sender: msg.senderId,
+          time: new Date(msg.createdAt),
+          isOwn: msg.senderId === user.id,
+        }))
+      );
+    } catch (error) {
+      console.error("Lỗi khi tải tin nhắn:", error);
     }
-
-    const doScroll = (behavior = 'auto') => {
-      try {
-        // primary: scroll container to bottom
-        container.scrollTo({ top: container.scrollHeight, behavior });
-        // fallback: scroll the end marker into view
-        if (end) end.scrollIntoView({ behavior, block: 'end' });
-      } catch (e) {
-        container.scrollTop = container.scrollHeight;
-      } finally {
-        shouldScrollRef.current = false;
-      }
-    };
-
-    // Give one frame for DOM layout (helps with fonts/images)
-    requestAnimationFrame(() => {
-      // tiny delay to ensure child layout finished
-      setTimeout(() => doScroll('smooth'), 20);
-    });
-  }, [messages, selectedChat]);
+  }
 
   const sendMessage = () => {
     if (!newMessage.trim() || !selectedChat) return;
     const messageData = {
       roomId: selectedChat.roomId,
       sender: user.id,
-      receiver: selectedChat.otherUserId, 
+      receiver: selectedChat.otherUserId,
       text: newMessage.trim(),
     };
-    
+
     socket.emit("sendMessage", messageData);
-
-    // reset input
     setNewMessage('');
-    shouldScrollRef.current = true;
-
-    // update last message in chats
-    setChats(prev =>
-      prev.map(chat =>
-        chat.id === selectedChat.id
-          ? { ...chat, lastMessage: newMessage, lastTime: new Date(), unread: 0 }
-          : chat
-      )
-    );
   };
 
   const filteredChats = chats.filter(chat => chat.title?.toLowerCase().includes(searchQuery.toLowerCase()));
-
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-[calc(100dvh-70px)] bg-gray-100 overflow-hidden">
       {/* Danh sách cuộc trò chuyện - Trái */}
       <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} md:w-96 flex-col bg-white border-r border-gray-200`}>
         <div className="flex-shrink-0 p-4 border-b border-gray-200">
@@ -158,8 +144,7 @@ export default function ChatPage() {
                   setSelectedChat(chat);
                   setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unread: 0 } : c));
                 }}
-                className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition ${selectedChat?.id === chat.id ? 'bg-indigo-50' : ''
-                  }`}
+                className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition ${selectedChat?.id === chat.id ? 'bg-indigo-50' : ''}`}
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
@@ -232,7 +217,7 @@ export default function ChatPage() {
                   className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.senderId === user.id ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.isOwn ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
                   >
                     <p className="text-sm">{msg.text}</p>
                     <p className={`text-xs mt-1 ${msg.isOwn ? 'text-indigo-200' : 'text-gray-500'}`}>
@@ -241,7 +226,7 @@ export default function ChatPage() {
                   </div>
                 </div>
               ))}
-              <div ref={messagesEndRef} />
+              <div ref={bottomRef} />
             </div>
 
             {/* Input gửi tin nhắn */}

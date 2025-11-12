@@ -1,8 +1,10 @@
 "use client"
 import { useEffect, useState } from "react"
 import { X, Eye, EyeOff } from "lucide-react"
+import { useUser } from "@/app/Store/UserContext"
 
 export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
+  const { user, setUser } = useUser();
   const [isLogin, setIsLogin] = useState(mode == "login")
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -69,7 +71,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
     try {
       const res = await fetch(endpoint, {
         method: "POST",
-        credentials: "include", // ✅ CHO PHÉP GỬI COOKIE
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -87,13 +89,17 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
         return;
       }
 
-      // ✅ Không lưu token nữa, vì cookie đã lưu giúp ta
       onLoginSuccess({
         name: data.user.name,
         email: data.user.email,
         role: data.user.role,
       });
 
+      setUser({
+        id: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+      });
       setFormData({ email: "", password: "", fullName: "", confirmPassword: "" });
       onClose();
     } catch (err) {
