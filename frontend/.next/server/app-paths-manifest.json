@@ -1,0 +1,11 @@
+{
+  "/api/proxy/rooms/[...id]/route": "app/api/proxy/rooms/[...id]/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/proxy/favorites/route": "app/api/proxy/favorites/route.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/chat/page": "app/chat/page.js",
+  "/post-room/page": "app/post-room/page.js",
+  "/room/[id]/page": "app/room/[id]/page.js",
+  "/page": "app/page.js",
+  "/search/page": "app/search/page.js"
+}
