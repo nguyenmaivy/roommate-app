@@ -1,3 +1,5 @@
+version: "3.7"
+
 services:
   n8n:
     image: n8nio/n8n:latest
@@ -11,6 +13,8 @@ services:
       - N8N_BASIC_AUTH_PASSWORD=changeme
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - N8N_PORT=5678
+      # 👇 thêm dòng này — sẽ cập nhật bằng URL ngrok sau
+      - WEBHOOK_URL=https://REPLACE_WITH_NGROK_URL
     volumes:
       - ./n8n_data:/home/node/.n8n
       - ./workflows:/workflows:ro
@@ -33,3 +37,13 @@ services:
       exit 0
     volumes:
       - ./workflows:/workflows:ro
+
+  # 👇 thêm service ngrok ở cuối file
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: roommate_ngrok
+    command: http 5678 --authtoken=${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
