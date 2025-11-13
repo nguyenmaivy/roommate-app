@@ -1,9 +1,9 @@
 // app/chat/page.js
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
-import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, User, Home } from 'lucide-react';
-import { format, set } from 'date-fns';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, Home } from 'lucide-react';
+import { format } from 'date-fns';
 import Link from 'next/link';
 import { useUser } from '../Store/UserContext';
 import SimplePeer from "simple-peer";

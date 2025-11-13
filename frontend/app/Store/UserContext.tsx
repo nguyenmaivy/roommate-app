@@ -1,12 +1,23 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
 import { socket } from "../socket";
-const UserContext = createContext(null);
 
-export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+interface User {
+  id?: string;
+  role?: string;
+  [key: string]: any;
+}
 
-  // Khi user thay đổi → tự động đăng ký userId/email lên server
+interface UserContextType {
+  user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>; // ← SỬA Ở ĐÂY
+}
+
+const UserContext = createContext<UserContextType | undefined>(undefined);
+
+export const UserProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+
   useEffect(() => {
     if (user?.id) {
       socket.emit("register", user.id);
@@ -21,4 +32,8 @@ export const UserProvider = ({ children }) => {
   );
 };
 
-export const useUser = () => useContext(UserContext);
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (!context) throw new Error("useUser must be used within UserProvider");
+  return context;
+};
