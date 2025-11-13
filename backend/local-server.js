@@ -21,6 +21,63 @@ const app = express();
 const port = 3001;
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
+const users = new Map();
+
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Khi user login xong, client gửi userId để đăng ký
+  socket.on("register", (userId) => {
+    users.set(userId, socket.id);
+    console.log(`User ${userId} registered as ${socket.id}`);
+
+    // Gửi danh sách người online (tùy chọn)
+    io.emit("online-users", Array.from(users.keys()));
+  });
+  // Khi user kết thúc cuộc gọi
+  socket.on("end-call", ({ to }) => {
+    const targetSocket = users.get(to); // to = email, hoặc userId
+    console.log("📴 END CALL → map to socket:", targetSocket);
+
+    if (targetSocket) {
+      io.to(targetSocket).emit("call-ended");
+    } else {
+      console.log("⚠️ Không tìm thấy socket cho:", to);
+    }
+  });
+
+  // Khi user từ chối cuộc gọi
+  socket.on("reject-call", ({ to }) => {
+    console.log(`❌ Cuộc gọi bị từ chối bởi ${socket.id}, gửi thông báo tới ${to}`);
+    io.to(to).emit("call-rejected");
+  });
+
+  // Khi user gọi người khác
+  socket.on("call-user", ({ to, offer }) => {
+    console.log(`📞 ${socket.id} gọi tới userId ${to}`);
+    const targetSocket = users.get(to);
+    console.log("🎯 targetSocket:", targetSocket);
+    if (targetSocket) {
+      io.to(targetSocket).emit("incoming-call", { from: socket.id, offer });
+    } else {
+      console.log("❌ Không tìm thấy userId", to);
+    }
+  });
+
+
+  // Khi user trả lời
+  socket.on("answer-call", ({ to, answer }) => {
+    io.to(to).emit("call-answered", { answer });
+  });
+
+  // Khi ngắt kết nối
+  socket.on("disconnect", () => {
+    for (let [userId, id] of users.entries()) {
+      if (id === socket.id) users.delete(userId);
+    }
+    io.emit("online-users", Array.from(users.keys()));
+  });
+});
 
 // Middleware
 app.use(
@@ -58,15 +115,13 @@ app.post("/login", async (req, res) => {
 app.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    secure: false,           // nếu deploy HTTPS thì đổi thành true
-    sameSite: "lax",         // ngăn CSRF cơ bản
-    path: "/",               // phải giống path lúc set cookie!
+    secure: false,
+    sameSite: "lax",
+    path: "/",
   });
 
   return res.status(200).json({ message: "Logged out successfully" });
 });
-
-
 
 export const authMiddleware = (req, res, next) => {
   const token = req.cookies.token;

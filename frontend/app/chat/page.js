@@ -3,14 +3,12 @@
 
 import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
 import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, User, Home } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, set } from 'date-fns';
 import Link from 'next/link';
 import { useUser } from '../Store/UserContext';
-import { io } from "socket.io-client";
-
-const socket = io(process.env.NEXT_PUBLIC_API_URL, {
-  transports: ["websocket"],
-});
+import SimplePeer from "simple-peer";
+import { socket } from '../socket';
+import { playSound, stopSound } from './soundPlayer';
 export default function ChatPage() {
   const { user } = useUser();
   const [chats, setChats] = useState([]);
@@ -18,8 +16,13 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-
+  const peerRef = useRef(null);
   const bottomRef = useRef(null);
+  const [incoming, setIncoming] = useState(null);
+  const [callStatus, setCallStatus] = useState("idle");
+  const [remoteUserId, setRemoteUserId] = useState(null);
+  const [ringtone, setRingtone] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,10 +54,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!selectedChat) return;
-
     fetchMessages();
     socket.emit("joinRoom", selectedChat.roomId);
-    //Xử lý tin nhắn mới
     const handleNewMessage = (message) => {
       if (message.roomId !== selectedChat.roomId) return;
       setMessages(prev => [
@@ -70,10 +71,7 @@ export default function ChatPage() {
 
     };
     socket.on("newMessage", handleNewMessage);
-
-    // cleanup khi chuyển sang room khác (tránh duplicate listener)
     return () => socket.off("newMessage", handleNewMessage);
-
   }, [selectedChat]);
 
   async function fetchMessages() {
@@ -110,6 +108,179 @@ export default function ChatPage() {
     socket.emit("sendMessage", messageData);
     setNewMessage('');
   };
+
+  const handleCallUser = (targetUserId) => {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        const peer = new SimplePeer({
+          initiator: true,
+          trickle: false,
+          stream,
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+              {
+                urls: "turn:relay1.expressturn.com:3478",
+                username: "efree",
+                credential: "efree",
+              },
+            ],
+          },
+        });
+
+        setRemoteUserId(targetUserId);
+        peerRef.current = peer;
+        setCallStatus("ringing");
+        setShowPopup(true);
+
+        const audio = playSound("/sounds/ringing.mp3", true);
+        setRingtone(audio);
+
+        peer.on("signal", data => {
+          socket.emit("call-user", { to: targetUserId, offer: data });
+        });
+
+        peer.on("stream", remoteStream => {
+          const audioEl = document.getElementById("remoteAudio");
+          if (audioEl) {
+            audioEl.srcObject = remoteStream;
+            audioEl.play().catch(err => console.error("⚠️ Audio play failed:", err));
+          }
+        });
+      });
+  };
+
+
+  //thiết lập sự kiện cho cuộc gọi đến và trả lời cuộc gọi
+  useEffect(() => {
+    socket.on("incoming-call", ({ from, offer }) => {
+      console.log("📲 Incoming call from:", from);
+      setIncoming({ from, offer });
+      setRemoteUserId(from);
+      setShowPopup(true);
+      setCallStatus("ringing");
+
+      const audio = playSound("/sounds/incoming.mp3", true);
+      setRingtone(audio);
+    });
+
+    return () => socket.off("incoming-call");
+  }, []);
+
+  const handleAnswerCall = () => {
+    const { from, offer } = incoming;
+    stopSound(ringtone); // dừng chuông
+    setIncoming(null);
+    setCallStatus("connected");
+    setShowPopup(true);
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const peer = new SimplePeer({
+        initiator: false,
+        trickle: false,
+        stream,
+        config: {
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+            {
+              urls: "turn:relay1.expressturn.com:3478",
+              username: "efree",
+              credential: "efree",
+            },
+          ],
+        },
+      });
+
+      peerRef.current = peer;
+      peer.signal(offer);
+
+      peer.on("signal", data => {
+        socket.emit("answer-call", { to: from, answer: data });
+      });
+
+      peer.on("stream", remoteStream => {
+        const audioEl = document.getElementById("remoteAudio");
+        if (audioEl) {
+          audioEl.srcObject = remoteStream;
+          audioEl.play().catch(err => console.error("⚠️ Audio play failed:", err));
+        }
+      });
+    });
+  };
+
+  const handleRejectCall = () => {
+    const { from } = incoming;
+    socket.emit("reject-call", { to: from });
+    stopSound(ringtone);
+    setIncoming(null);
+    setCallStatus("ended");
+    setShowPopup(false);
+    playSound("/sounds/rejected.mp3");
+  };
+
+
+  //gán sự kiện khi cuộc gọi bị từ chối
+  // useEffect(() => {
+  //   socket.on("call-rejected", () => {
+  //     stopSound(ringtone);
+  //     console.log("📴 Cuộc gọi bị từ chối");
+  //     alert("Người nhận đã từ chối cuộc gọi");
+  //     if (peerRef.current) peerRef.current.destroy(); // hủy peer connection
+  //     setCallStatus("ended");
+  //   });
+
+  //   return () => socket.off("call-rejected");
+  // }, []);
+
+  const handleEndCall = () => {
+    if (!remoteUserId) return;
+    console.log("📴 Kết thúc cuộc gọi với:", remoteUserId);
+
+    socket.emit("end-call", { to: remoteUserId });
+    stopSound(ringtone);
+    playSound("/sounds/end.mp3");
+    setCallStatus("ended");
+    setShowPopup(false);
+
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    socket.on("call-answered", ({ answer }) => {
+      if (peerRef.current) peerRef.current.signal(answer);
+      stopSound(ringtone);
+      setCallStatus("connected");
+      setShowPopup(true);
+    });
+
+    socket.on("call-rejected", () => {
+      stopSound(ringtone);
+      playSound("/sounds/rejected.mp3");
+      setCallStatus("ended");
+      setShowPopup(false);
+      if (peerRef.current) peerRef.current.destroy();
+    });
+
+    socket.on("call-ended", () => {
+      stopSound(ringtone);
+      playSound("/sounds/end.mp3");
+      setCallStatus("ended");
+      setShowPopup(false);
+      if (peerRef.current) peerRef.current.destroy();
+    });
+
+    return () => {
+      socket.off("call-answered");
+      socket.off("call-rejected");
+      socket.off("call-ended");
+    };
+  }, [ringtone]);
+
 
   const filteredChats = chats.filter(chat => chat.title?.toLowerCase().includes(searchQuery.toLowerCase()));
   return (
@@ -197,8 +368,11 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex space-x-2">
-                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
-                  <Phone className="w-5 h-5" />
+                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                  onClick={() => handleCallUser(selectedChat.otherUserId)}
+                >
+                  <Phone className="w-5 h-5"
+                  />
                 </button>
                 <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
                   <Video className="w-5 h-5" />
@@ -206,6 +380,19 @@ export default function ChatPage() {
                 <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
                   <MoreVertical className="w-5 h-5" />
                 </button>
+
+                {/* {incoming && (
+                  <div className="mt-4 bg-yellow-100 p-3 rounded">
+                    <p>📲 Có cuộc gọi đến từ: {incoming.from}</p>
+                    <button
+                      className="bg-green-500 text-white p-2 rounded mt-2"
+                      onClick={handleAnswerCall}
+                    >
+                      ✅ Trả lời
+                    </button>
+                  </div>
+                )} */}
+                <audio id="remoteAudio" autoPlay controls className='hidden' />
               </div>
             </div>
 
@@ -258,6 +445,44 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+      {showPopup && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/60 text-white z-50">
+          {callStatus === "ringing" && incoming ? (
+            <>
+              <p className="text-xl mb-4">📲 Có cuộc gọi đến!</p>
+              <div className="flex gap-4">
+                <button onClick={handleAnswerCall} className="bg-green-500 px-5 py-2 rounded-lg">Chấp nhận</button>
+                <button onClick={handleRejectCall} className="bg-red-500 px-5 py-2 rounded-lg">Từ chối</button>
+              </div>
+            </>
+          ) : callStatus === "ringing" ? (
+            <>
+              <p className="text-xl mb-4">📞 Đang gọi...</p>
+              <button onClick={handleEndCall} className="bg-red-500 px-5 py-2 rounded-lg">Hủy cuộc gọi</button>
+            </>
+          ) : callStatus === "connected" ? (
+            <>
+              <p className="text-xl mb-4">🔊 Đang trò chuyện</p>
+              <button onClick={handleEndCall} className="bg-red-500 px-5 py-2 rounded-lg">Kết thúc</button>
+            </>
+          ) : null}
+        </div>
+      )}
+      {/* {callStatus === "connected" && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3">
+          <span>🔊 Đang trò chuyện</span>
+          <button
+            onClick={handleEndCall}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2 rounded-full"
+          >
+            Kết thúc
+          </button>
+        </div>
+      )} */}
+      <audio src="/sounds/ringing.mp3" preload="auto" className='hidden' />
+      <audio src="/sounds/end.mp3" preload="auto" className='hidden' />
+      <audio src="/sounds/incoming.mp3" preload="auto" className='hidden' />
+      <audio src="/sounds/rejected.mp3" preload="auto" className='hidden' />
     </div>
   );
 }

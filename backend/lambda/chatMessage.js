@@ -100,8 +100,8 @@ export const getMessages = async (event) => {
       messageId: msg.messageId,
       text: msg.text,
       roomId: msg.roomId,
-      senderId: msg.sender,     // 👈 chính xác người gửi
-      receiverId: msg.receiver, // 👈 chính xác người nhận
+      senderId: msg.sender,     
+      receiverId: msg.receiver,
       createdAt: msg.createdAt,
     }));
 
@@ -179,9 +179,6 @@ export const getUserChats = async (email) => {
 
       const room = roomResult.Item ?? {};
 
-      // ✅ LOGIC HIỂN THỊ TITLE:
-      // User là landlord ⇒ dùng room.title
-      // User là student ⇒ dùng tên landlord
       const isLandlord = room.landlordId === userId;
 
       return {
