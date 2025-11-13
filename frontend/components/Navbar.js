@@ -15,7 +15,7 @@ export default function Navbar() {
   useEffect(() => {
     async function fetchUser() {
       try {
-        const res = await fetch("http://localhost:3001/me", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/me`, {
           credentials: "include", // ✅ gửi cookie
         });
 
@@ -35,7 +35,7 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = async () => {
-    await fetch("http://localhost:3001/logout", {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/logout`, {
       method: "POST",
       credentials: "include", // ✅ gửi cookie để backend xoá
     });

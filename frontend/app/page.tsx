@@ -255,7 +255,7 @@ export default function Home() {
   }
 
   const handleSwitchUser = async () => {
-    const res = await fetch("http://localhost:3001/switch-role", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/switch-role`, {
       method: "POST",
       credentials: "include",
     });

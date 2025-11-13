@@ -65,8 +65,8 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
     if (!validateForm()) return;
 
     const endpoint = isLogin
-      ? "http://localhost:3001/login"
-      : "http://localhost:3001/register";
+      ? `${process.env.NEXT_PUBLIC_API_URL}/login`
+      : `${process.env.NEXT_PUBLIC_API_URL}/register`;
 
     try {
       const res = await fetch(endpoint, {
