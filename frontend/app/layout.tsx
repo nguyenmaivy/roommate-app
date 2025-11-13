@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import Navbar from "@/components/Navbar"
 import ConditionalFooter from '@/components/ConditionalFooter';
 import "./globals.css"
+import { UserProvider } from "./Store/UserContext"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -21,10 +22,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" className="mdl-js">
       <body className={`font-sans antialiased`}>
-        <Navbar />
-        {children}
+        <UserProvider>
+          <Navbar />
+          {children}
+        </UserProvider>
         <ConditionalFooter />
         <Analytics />
       </body>

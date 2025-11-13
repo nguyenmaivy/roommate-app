@@ -11,22 +11,6 @@ export const __setDocumentClient = (client) => {
 const USERS_TABLE = "Users";
 
 export const handler = async (event) => {
-  if (!ddb) {
-    const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient } = await import("@aws-sdk/lib-dynamodb");
-
-    const client = new DynamoDBClient({
-      region: process.env.AWS_REGION || "us-east-1",
-      endpoint: process.env.DYNAMODB_ENDPOINT || "http://localhost:8000",
-      credentials: {
-        accessKeyId: "fake",
-        secretAccessKey: "fake",
-      },
-    });
-
-    ddb = DynamoDBDocumentClient.from(client);
-  }
-
   const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
   const { email, password, name } = body;
 
@@ -42,7 +26,7 @@ export const handler = async (event) => {
     const user = {
       userId: uuidv4(),
       email,
-      passwordHash,
+      password: passwordHash,
       name,
       role: "STUDENT",
     };

@@ -1,129 +1,290 @@
 // app/chat/page.js
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useContext } from 'react';
 import { Send, Search, Phone, Video, MoreVertical, ArrowLeft, User, Home } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, set } from 'date-fns';
 import Link from 'next/link';
-import { USER_ROLES } from '@/mockData';
-
-const MOCK_CHATS = [
-  {
-    id: 'chat1',
-    roomId: 'r1',
-    roomTitle: 'Phòng trọ mới Quận 1',
-    otherUser: { id: 'L1', name: 'Trần Văn B (Chủ trọ)', role: USER_ROLES.LANDLORD },
-    lastMessage: 'Có sẵn phòng không ạ?',
-    lastTime: new Date(Date.now() - 1000 * 60 * 5),
-    unread: 2,
-  },
-  {
-    id: 'chat2',
-    roomId: 'r3',
-    roomTitle: 'Căn hộ mini Full nội thất',
-    otherUser: { id: 'L1', name: 'Trần Văn B (Chủ trọ)', role: USER_ROLES.LANDLORD },
-    lastMessage: 'Em muốn xem phòng vào thứ 7 được không?',
-    lastTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    unread: 0,
-  },
-  {
-    id: 'chat3',
-    roomId: 'r2',
-    roomTitle: 'Studio giá rẻ gần ĐH Sài Gòn',
-    otherUser: { id: 'L2', name: 'Lê Thị C (Chủ trọ)', role: USER_ROLES.LANDLORD },
-    lastMessage: 'Dạ còn phòng ạ',
-    lastTime: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    unread: 1,
-  },
-];
-
-const MOCK_MESSAGES = {
-  chat1: [
-    { id: 'm1', senderId: 'U1', text: 'Chào anh, phòng còn không ạ?', time: new Date(Date.now() - 1000 * 60 * 30) },
-    { id: 'm2', senderId: 'L1', text: 'Còn em ơi, anh gửi hình thêm nhé', time: new Date(Date.now() - 1000 * 60 * 25) },
-    { id: 'm3', senderId: 'U1', text: 'Dạ anh gửi giúp em với ạ', time: new Date(Date.now() - 1000 * 60 * 20) },
-    { id: 'm4', senderId: 'L1', text: 'Có sẵn phòng không ạ?', time: new Date(Date.now() - 1000 * 60 * 5), isOwn: true },
-  ],
-  chat2: [
-    { id: 'm5', senderId: 'U1', text: 'Chị ơi em muốn xem phòng vào thứ 7 được không?', time: new Date(Date.now() - 1000 * 60 * 60 * 3) },
-    { id: 'm6', senderId: 'L1', text: 'Được em, chị ở đó cả ngày', time: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-  ],
-};
-
+import { useUser } from '../Store/UserContext';
+import SimplePeer from "simple-peer";
+import { socket } from '../socket';
+import { playSound, stopSound } from './soundPlayer';
 export default function ChatPage() {
-  const [user] = useState({ id: 'U1', name: 'Nguyễn Văn A', role: USER_ROLES.STUDENT });
-  const [chats, setChats] = useState(MOCK_CHATS);
+  const { user } = useUser();
+  const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const messagesEndRef = useRef(null);
-  const shouldScrollRef = useRef(false);
-
+  const peerRef = useRef(null);
+  const bottomRef = useRef(null);
+  const [incoming, setIncoming] = useState(null);
+  const [callStatus, setCallStatus] = useState("idle");
+  const [remoteUserId, setRemoteUserId] = useState(null);
+  const [ringtone, setRingtone] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {
-    // khi component mount (vào page/chat) -> tắt scroll body
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    return () => {
-      // khi rời page/chat -> restore
-      document.body.style.overflow = prev || '';
-    };
+  useEffect(() => {
+    async function fetchChats() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chats`, {
+          method: "GET",
+          credentials: "include",
+        }); // gọi API
+        const data = await res.json();
+
+        // convert lastTime về Date để format HH:mm được
+        const parsed = data.map(chat => ({
+          ...chat,
+          lastTime: new Date(chat.lastTime),
+        }));
+
+        setChats(parsed);
+      } catch (error) {
+        console.error("Lỗi khi tải danh sách chat:", error);
+      }
+    }
+
+    fetchChats();
   }, []);
 
   useEffect(() => {
-    if (selectedChat) {
-      setMessages(MOCK_MESSAGES[selectedChat.id] || []);
-      shouldScrollRef.current = true;
-    }
+    if (!selectedChat) return;
+    fetchMessages();
+    socket.emit("joinRoom", selectedChat.roomId);
+    const handleNewMessage = (message) => {
+      if (message.roomId !== selectedChat.roomId) return;
+      setMessages(prev => [
+        ...prev,
+        {
+          id: message.messageId,
+          text: message.text,
+          sender: message.sender,
+          time: new Date(message.createdAt),
+          isOwn: message.sender === user.id,
+        }
+      ]);
+
+    };
+    socket.on("newMessage", handleNewMessage);
+    return () => socket.off("newMessage", handleNewMessage);
   }, [selectedChat]);
 
-  useEffect(() => {
-    if (shouldScrollRef.current) {
-      scrollToBottom();
-      // reset flag để không auto-scroll cho mọi thay đổi messages tiếp theo
-      shouldScrollRef.current = false;
-    }
-  }, [messages]);
+  async function fetchMessages() {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/messages/${selectedChat.roomId}`, {
+        credentials: "include",
+      });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+      const data = (await res.json()).messages;
+
+      setMessages(
+        data.map(msg => ({
+          id: msg.messageId,
+          text: msg.text,
+          sender: msg.senderId,
+          time: new Date(msg.createdAt),
+          isOwn: msg.senderId === user.id,
+        }))
+      );
+    } catch (error) {
+      console.error("Lỗi khi tải tin nhắn:", error);
+    }
+  }
 
   const sendMessage = () => {
     if (!newMessage.trim() || !selectedChat) return;
-
-    const msg = {
-      id: `m${Date.now()}`,
-      senderId: user.id,
-      text: newMessage,
-      time: new Date(),
-      isOwn: true,
+    const messageData = {
+      roomId: selectedChat.roomId,
+      sender: user.id,
+      receiver: selectedChat.otherUserId,
+      text: newMessage.trim(),
     };
 
-    setMessages(prev => [...prev, msg]);
+    socket.emit("sendMessage", messageData);
     setNewMessage('');
-    shouldScrollRef.current = true;
-
-    // Cập nhật last message trong danh sách chat
-    setChats(prev =>
-      prev.map(chat =>
-        chat.id === selectedChat.id
-          ? { ...chat, lastMessage: newMessage, lastTime: new Date(), unread: 0 }
-          : chat
-      )
-    );
-
   };
 
-  const filteredChats = chats.filter(chat =>
-    chat.roomTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.otherUser.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCallUser = (targetUserId) => {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        const peer = new SimplePeer({
+          initiator: true,
+          trickle: false,
+          stream,
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+              {
+                urls: "turn:relay1.expressturn.com:3478",
+                username: "efree",
+                credential: "efree",
+              },
+            ],
+          },
+        });
 
+        setRemoteUserId(targetUserId);
+        peerRef.current = peer;
+        setCallStatus("ringing");
+        setShowPopup(true);
+
+        const audio = playSound("/sounds/ringing.mp3", true);
+        setRingtone(audio);
+
+        peer.on("signal", data => {
+          socket.emit("call-user", { to: targetUserId, offer: data });
+        });
+
+        peer.on("stream", remoteStream => {
+          const audioEl = document.getElementById("remoteAudio");
+          if (audioEl) {
+            audioEl.srcObject = remoteStream;
+            audioEl.play().catch(err => console.error("⚠️ Audio play failed:", err));
+          }
+        });
+      });
+  };
+
+
+  //thiết lập sự kiện cho cuộc gọi đến và trả lời cuộc gọi
+  useEffect(() => {
+    socket.on("incoming-call", ({ from, offer }) => {
+      console.log("📲 Incoming call from:", from);
+      setIncoming({ from, offer });
+      setRemoteUserId(from);
+      setShowPopup(true);
+      setCallStatus("ringing");
+
+      const audio = playSound("/sounds/incoming.mp3", true);
+      setRingtone(audio);
+    });
+
+    return () => socket.off("incoming-call");
+  }, []);
+
+  const handleAnswerCall = () => {
+    const { from, offer } = incoming;
+    stopSound(ringtone); // dừng chuông
+    setIncoming(null);
+    setCallStatus("connected");
+    setShowPopup(true);
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const peer = new SimplePeer({
+        initiator: false,
+        trickle: false,
+        stream,
+        config: {
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" },
+            {
+              urls: "turn:relay1.expressturn.com:3478",
+              username: "efree",
+              credential: "efree",
+            },
+          ],
+        },
+      });
+
+      peerRef.current = peer;
+      peer.signal(offer);
+
+      peer.on("signal", data => {
+        socket.emit("answer-call", { to: from, answer: data });
+      });
+
+      peer.on("stream", remoteStream => {
+        const audioEl = document.getElementById("remoteAudio");
+        if (audioEl) {
+          audioEl.srcObject = remoteStream;
+          audioEl.play().catch(err => console.error("⚠️ Audio play failed:", err));
+        }
+      });
+    });
+  };
+
+  const handleRejectCall = () => {
+    const { from } = incoming;
+    socket.emit("reject-call", { to: from });
+    stopSound(ringtone);
+    setIncoming(null);
+    setCallStatus("ended");
+    setShowPopup(false);
+    playSound("/sounds/rejected.mp3");
+  };
+
+
+  //gán sự kiện khi cuộc gọi bị từ chối
+  // useEffect(() => {
+  //   socket.on("call-rejected", () => {
+  //     stopSound(ringtone);
+  //     console.log("📴 Cuộc gọi bị từ chối");
+  //     alert("Người nhận đã từ chối cuộc gọi");
+  //     if (peerRef.current) peerRef.current.destroy(); // hủy peer connection
+  //     setCallStatus("ended");
+  //   });
+
+  //   return () => socket.off("call-rejected");
+  // }, []);
+
+  const handleEndCall = () => {
+    if (!remoteUserId) return;
+    console.log("📴 Kết thúc cuộc gọi với:", remoteUserId);
+
+    socket.emit("end-call", { to: remoteUserId });
+    stopSound(ringtone);
+    playSound("/sounds/end.mp3");
+    setCallStatus("ended");
+    setShowPopup(false);
+
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    socket.on("call-answered", ({ answer }) => {
+      if (peerRef.current) peerRef.current.signal(answer);
+      stopSound(ringtone);
+      setCallStatus("connected");
+      setShowPopup(true);
+    });
+
+    socket.on("call-rejected", () => {
+      stopSound(ringtone);
+      playSound("/sounds/rejected.mp3");
+      setCallStatus("ended");
+      setShowPopup(false);
+      if (peerRef.current) peerRef.current.destroy();
+    });
+
+    socket.on("call-ended", () => {
+      stopSound(ringtone);
+      playSound("/sounds/end.mp3");
+      setCallStatus("ended");
+      setShowPopup(false);
+      if (peerRef.current) peerRef.current.destroy();
+    });
+
+    return () => {
+      socket.off("call-answered");
+      socket.off("call-rejected");
+      socket.off("call-ended");
+    };
+  }, [ringtone]);
+
+
+  const filteredChats = chats.filter(chat => chat.title?.toLowerCase().includes(searchQuery.toLowerCase()));
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-[calc(100dvh-70px)] bg-gray-100 overflow-hidden">
       {/* Danh sách cuộc trò chuyện - Trái */}
       <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} md:w-96 flex-col bg-white border-r border-gray-200`}>
         <div className="flex-shrink-0 p-4 border-b border-gray-200">
@@ -154,16 +315,15 @@ export default function ChatPage() {
                   setSelectedChat(chat);
                   setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unread: 0 } : c));
                 }}
-                className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition ${selectedChat?.id === chat.id ? 'bg-indigo-50' : ''
-                  }`}
+                className={`p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition ${selectedChat?.id === chat.id ? 'bg-indigo-50' : ''}`}
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                    {chat.otherUser.name.charAt(0)}
+                    {chat?.title?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
-                      <h3 className="font-semibold text-gray-900 truncate">{chat.roomTitle}</h3>
+                      <h3 className="font-semibold text-gray-900 truncate">{chat.title}</h3>
                       <span className="text-xs text-gray-500 ml-2">
                         {format(chat.lastTime, 'HH:mm')}
                       </span>
@@ -200,7 +360,7 @@ export default function ChatPage() {
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {selectedChat.otherUser.name.charAt(0)}
+                  {selectedChat.title.charAt(0)}
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-900">{selectedChat.roomTitle}</h2>
@@ -208,8 +368,11 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="flex space-x-2">
-                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
-                  <Phone className="w-5 h-5" />
+                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                  onClick={() => handleCallUser(selectedChat.otherUserId)}
+                >
+                  <Phone className="w-5 h-5"
+                  />
                 </button>
                 <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
                   <Video className="w-5 h-5" />
@@ -217,6 +380,19 @@ export default function ChatPage() {
                 <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
                   <MoreVertical className="w-5 h-5" />
                 </button>
+
+                {/* {incoming && (
+                  <div className="mt-4 bg-yellow-100 p-3 rounded">
+                    <p>📲 Có cuộc gọi đến từ: {incoming.from}</p>
+                    <button
+                      className="bg-green-500 text-white p-2 rounded mt-2"
+                      onClick={handleAnswerCall}
+                    >
+                      ✅ Trả lời
+                    </button>
+                  </div>
+                )} */}
+                <audio id="remoteAudio" autoPlay controls className='hidden' />
               </div>
             </div>
 
@@ -225,22 +401,19 @@ export default function ChatPage() {
               {messages.map(msg => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.senderId === user.id
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-800 border border-gray-200'
-                      }`}
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${msg.isOwn ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800 border border-gray-200'}`}
                   >
                     <p className="text-sm">{msg.text}</p>
-                    <p className={`text-xs mt-1 ${msg.senderId === user.id ? 'text-indigo-200' : 'text-gray-500'}`}>
+                    <p className={`text-xs mt-1 ${msg.isOwn ? 'text-indigo-200' : 'text-gray-500'}`}>
                       {format(msg.time, 'HH:mm')}
                     </p>
                   </div>
                 </div>
               ))}
-              <div ref={messagesEndRef} />
+              <div ref={bottomRef} />
             </div>
 
             {/* Input gửi tin nhắn */}
@@ -272,6 +445,44 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+      {showPopup && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-black/60 text-white z-50">
+          {callStatus === "ringing" && incoming ? (
+            <>
+              <p className="text-xl mb-4">📲 Có cuộc gọi đến!</p>
+              <div className="flex gap-4">
+                <button onClick={handleAnswerCall} className="bg-green-500 px-5 py-2 rounded-lg">Chấp nhận</button>
+                <button onClick={handleRejectCall} className="bg-red-500 px-5 py-2 rounded-lg">Từ chối</button>
+              </div>
+            </>
+          ) : callStatus === "ringing" ? (
+            <>
+              <p className="text-xl mb-4">📞 Đang gọi...</p>
+              <button onClick={handleEndCall} className="bg-red-500 px-5 py-2 rounded-lg">Hủy cuộc gọi</button>
+            </>
+          ) : callStatus === "connected" ? (
+            <>
+              <p className="text-xl mb-4">🔊 Đang trò chuyện</p>
+              <button onClick={handleEndCall} className="bg-red-500 px-5 py-2 rounded-lg">Kết thúc</button>
+            </>
+          ) : null}
+        </div>
+      )}
+      {/* {callStatus === "connected" && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3">
+          <span>🔊 Đang trò chuyện</span>
+          <button
+            onClick={handleEndCall}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2 rounded-full"
+          >
+            Kết thúc
+          </button>
+        </div>
+      )} */}
+      <audio src="/sounds/ringing.mp3" preload="auto" className='hidden' />
+      <audio src="/sounds/end.mp3" preload="auto" className='hidden' />
+      <audio src="/sounds/incoming.mp3" preload="auto" className='hidden' />
+      <audio src="/sounds/rejected.mp3" preload="auto" className='hidden' />
     </div>
   );
 }
