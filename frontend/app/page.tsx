@@ -35,6 +35,13 @@ interface Filters {
   amenities: string[]
   showFavorites: boolean
 }
+interface ChatRoom {
+  roomId: string;
+  landlordId: string;
+  studentId?: string;
+  roomTitle: string;
+}
+
 const USER_ROLES = {
   STUDENT: "STUDENT",
   LANDLORD: "LANDLORD",
@@ -58,9 +65,7 @@ export default function Home() {
   // State cho Modal Thêm/Sửa
   const [showFormModal, setShowFormModal] = useState(false)
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
-
-  // State cho Modal Chat
-  const [chatRoom, setChatRoom] = useState(null)
+  const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
 
   useEffect(() => {
     async function fetchRooms() {
@@ -250,7 +255,7 @@ export default function Home() {
   }
 
   const handleSwitchUser = async () => {
-    const res = await fetch("http://localhost:3001/switch-role", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/switch-role`, {
       method: "POST",
       credentials: "include",
     });
