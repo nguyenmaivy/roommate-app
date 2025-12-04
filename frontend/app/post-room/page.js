@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { ArrowLeft, ImageIcon, Video, Phone } from "lucide-react"
 
 const HCMC_DISTRICTS = [
@@ -49,6 +49,8 @@ const FEATURES = [
 export default function PostPage() {
   const [activeTab, setActiveTab] = useState("khuvuc")
   const [user, setUser] = useState(null)
+  const [isLastTab, setIsLastTab] = useState(false)
+  const [currentTabIndex, setCurrentTabIndex] = useState(0)
   const [formData, setFormData] = useState({
     category: "",
     title: "",
@@ -128,8 +130,11 @@ export default function PostPage() {
     { id: "thongtinlienhe", label: "Thông tin liên hệ" },
   ]
 
-  const currentTabIndex = tabs.findIndex((tab) => tab.id === activeTab)
-  const isLastTab = currentTabIndex === tabs.length - 1
+  useEffect(() => {
+    const index = tabs.findIndex((tab) => tab.id === activeTab)
+    setCurrentTabIndex(index)
+    setIsLastTab(index === tabs.length - 1)
+  }, [activeTab, tabs])
 
   const goToNextTab = () => {
     if (currentTabIndex < tabs.length - 1) {
@@ -148,8 +153,10 @@ export default function PostPage() {
       features: prev.features.includes(id) ? prev.features.filter((f) => f !== id) : [...prev.features, id],
     }))
   }
+  console.log("Is Last Tab:", isLastTab)
 
   const handleSubmit = (e) => {
+    console.log("Is Last Tab:", isLastTab)
     e.preventDefault()
     console.log("Form data:", formData)
     alert("Đăng tin thành công!")
@@ -178,11 +185,10 @@ export default function PostPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-3 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? "border-orange-500 text-orange-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                  className={`py-3 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
+                    ? "border-orange-500 text-orange-600"
+                    : "border-transparent text-gray-600 hover:text-gray-900"
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -227,7 +233,7 @@ export default function PostPage() {
                   Nạp tiền vào tài khoản
                 </a>
                 <a href="#" className="block p-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition">
-                   Lịch sử nạp tiền
+                  Lịch sử nạp tiền
                 </a>
                 <a href="#" className="block p-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition">
                   Quản lý tài khoản

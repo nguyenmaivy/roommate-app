@@ -52,7 +52,7 @@ export const meUserHandler = async (req) => {
     return {
       statusCode: 200,
       headers: {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
         "Access-Control-Allow-Credentials": "true",
         "Content-Type": "application/json",
       },

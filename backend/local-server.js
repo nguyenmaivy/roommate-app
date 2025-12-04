@@ -29,14 +29,15 @@ io.on("connection", (socket) => {
   // Khi user login xong, client gửi userId để đăng ký
   socket.on("register", (userId) => {
     users.set(userId, socket.id);
+    socket.userId = userId;
     console.log(`User ${userId} registered as ${socket.id}`);
-
     // Gửi danh sách người online (tùy chọn)
     io.emit("online-users", Array.from(users.keys()));
   });
   // Khi user kết thúc cuộc gọi
   socket.on("end-call", ({ to }) => {
     const targetSocket = users.get(to); // to = email, hoặc userId
+
     console.log("📴 END CALL → map to socket:", targetSocket);
 
     if (targetSocket) {
@@ -58,7 +59,7 @@ io.on("connection", (socket) => {
     const targetSocket = users.get(to);
     console.log("🎯 targetSocket:", targetSocket);
     if (targetSocket) {
-      io.to(targetSocket).emit("incoming-call", { from: socket.id, offer });
+      io.to(targetSocket).emit("incoming-call", { from: socket.userId, offer });
     } else {
       console.log("❌ Không tìm thấy userId", to);
     }
@@ -67,7 +68,14 @@ io.on("connection", (socket) => {
 
   // Khi user trả lời
   socket.on("answer-call", ({ to, answer }) => {
-    io.to(to).emit("call-answered", { answer });
+    const targetSocket = users.get(to); // to = email
+    console.log("➡️ answer-call → gửi đến socket:", targetSocket);
+
+    if (targetSocket) {
+      io.to(targetSocket).emit("call-answered", { answer });
+    } else {
+      console.log("⚠️ Không tìm thấy socket để gửi answer-call:", to);
+    }
   });
 
   // Khi ngắt kết nối

@@ -6,7 +6,7 @@ import { MessageSquare, X } from "lucide-react";
 import { useUser } from "@/app/Store/UserContext";
 
 // Kết nối socket 1 lần (singleton)
-const socket = io(process.env.NEXT_PUBLIC_API_URL, {
+const socket = io(process.env.NEXT_PUBLIC_API_URL_WS, {
   transports: ["websocket"],
 });
 
