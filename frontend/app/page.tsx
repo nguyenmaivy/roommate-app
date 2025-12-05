@@ -13,15 +13,19 @@ import { AMENITIES } from "@/mockData"
 interface Room {
   id: string
   title: string
+  rental_type?: string
+  date?: string
   address: string
-  location?: string
   price: number
   area: number
   amenities: string[]
   landlordId: string
   description: string
-  imageUrl?: string
-  images?: string[]
+  images: string[]
+  location?: {
+    lat: number
+    lng: number
+  }
   isFavorite: boolean
 }
 

@@ -90,7 +90,7 @@ export default function RoomDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="flex items-center text-gray-600">
                   <MapPin className="w-5 h-5 mr-3 text-indigo-500" />
-                  <span>{room.location || room.address}</span>
+                  <span>{room.address || (room.location && `${room.location.lat}, ${room.location.lng}`)}</span>
                 </div>
                 <div className="flex items-center text-gray-600">
                   <Ruler className="w-5 h-5 mr-3 text-indigo-500" />

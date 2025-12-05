@@ -1,10 +1,10 @@
 "use client"
 import Link from "next/link"
 import { MapPin, Ruler, Zap, Heart, MessageSquare, Edit, Trash2 } from "lucide-react"
-import { AMENITIES, USER_ROLES } from "@/mockData"
+import { AMENITIES, USER_ROLES  } from "@/mockData"
 
 export default function RoomCard({ room, currentUserId, userRole, toggleFavorite, onEdit, onDelete, onChat }) {
-  const isOwner = room.landlordId === currentUserId && userRole === USER_ROLES.LANDLORD
+  const isOwner = room.landlordId === currentUserId && userRole === USER_ROLES .LANDLORD
   const isFavorite = room.isFavorite
 
   // Thay thế bằng logic API thực tế khi triển khai DynamoDB
@@ -36,7 +36,7 @@ export default function RoomCard({ room, currentUserId, userRole, toggleFavorite
           </p>
           <div className="space-y-1 text-sm text-gray-600">
             <p className="flex items-center">
-              <MapPin className="w-4 h-4 mr-2 text-indigo-400" /> {room.location || room.address}
+              <MapPin className="w-4 h-4 mr-2 text-indigo-400" /> {room.address || (room.location && `${room.location.lat}, ${room.location.lng}`)}
             </p>
             <p className="flex items-center">
               <Ruler className="w-4 h-4 mr-2 text-indigo-400" /> {room.area} m²

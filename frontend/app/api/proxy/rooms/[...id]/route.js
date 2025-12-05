@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { MOCK_ROOMS } from '@/mockData';
+import { ROOMS } from '@/mockData';
 
 export async function GET(request, { params }) {
   const { searchParams } = new URL(request.url);
@@ -8,11 +8,11 @@ export async function GET(request, { params }) {
 
   if (Array.isArray(idSegments) && idSegments.length === 1) {
     const id = idSegments[0];
-    const room = MOCK_ROOMS.find(r => r.id === id) || null;
+    const room = ROOMS.find(r => r.id === id) || null;
     return NextResponse.json(room);
   }
 
-  let rooms = [...MOCK_ROOMS];
+  let rooms = [...ROOMS];
   if (district) {
     rooms = rooms.filter(r => r.address?.includes(district));
   }
