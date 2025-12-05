@@ -56,6 +56,7 @@ async function createUsersTable() {
         email: "phuhuynh.010104@gmail.com",        // ✅ Bắt buộc phải có key email
         name: "Admin",
         password: await bcrypt.hash("123456", 10),
+        local: [10.8231, 106.6297],
         role: "admin",
       },
     })

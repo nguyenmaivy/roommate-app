@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 const VIETMAP_API_KEY = process.env.NEXT_PUBLIC_VIETMAP_API_KEY;
+// import '@vietmap/vietmap-gl-js/dist/vietmap-gl.css';
 import '../public/css/vietmap-gl.css';
 export default function RoomMap({ rooms }) {
   const mapContainer = useRef(null);
@@ -27,18 +28,16 @@ export default function RoomMap({ rooms }) {
 
     if (!map.current) {
       map.current = new vietmapgl.Map({
-        container: mapContainer.current, // dùng ref, không dùng string!
+        container: mapContainer.current,
         style: `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${VIETMAP_API_KEY}`,
-        center: [106, 10],
-        zoom: 3
+        center: [106.6297, 10.8231],      // 👈 Set vị trí từ backend
+        zoom: 15
       });
 
-      map.current.addControl(
-        new vietmapgl.GeolocateControl({
-          positionOptions: { enableHighAccuracy: true },
-          trackUserLocation: true
-        })
-      );
+      // Nếu bạn muốn hiển thị marker tại vị trí này
+      new vietmapgl.Marker({ color: "#ff0000" })
+        .setLngLat([106.6297, 10.8231])
+        .addTo(map.current);
     }
 
     const markers = [];
@@ -66,7 +65,7 @@ export default function RoomMap({ rooms }) {
 
   if (isTokenMissing) {
     return (
-      <div className="w-full h-32 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600">
+      <div className="w-full h-32 rounded-lg flex items-center justify-center bg-white text-gray-600">
         Thiếu API key vietmap. Hãy cấu hình NEXT_PUBLIC_VIETMAP_API_KEY.
       </div>
     );
