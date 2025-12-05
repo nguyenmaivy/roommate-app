@@ -27,10 +27,11 @@ const HCMC_DISTRICTS = [
 	{ id: "thuduc", name: "TP. Thủ Đức" },
 ]
 
-const CATEGORIES = [
-	{ id: 1, name: "Phòng trọ, nhà trọ" },
-	{ id: 2, name: "Nhà thuê nguyên căn" },
-	{ id: 3, name: "Căn hộ" },
+const RENTAL_TYPES = [
+	{ id: "phong_tro", name: "Cho thuê phòng trọ" },
+	{ id: "nha_nguyen_can", name: "Cho thuê nhà" },
+	{ id: "mat_bang", name: "Cho thuê mặt bằng" },
+	{ id: "can_ho_mini", name: "Cho thuê căn hộ mini" },
 ]
 
 const FEATURES = [
@@ -64,6 +65,9 @@ export default function PostPage() {
 		features: [],
 		description: "",
 		contactName: "",
+		imageUrl: [],
+		videoUrl: [],
+		videos: [], 
 		contactPhone: "",
 	})
 
@@ -160,9 +164,87 @@ export default function PostPage() {
 		alert("Đăng tin thành công!")
 	}
 
-	
+	const handleImageUpload = (e) => {
+		const files = e.target.files
+		if (!files) return
 
-	
+		Array.from(files).forEach((file) => {
+			// Validate file size (max 10MB)
+			if (file.size > 10 * 1024 * 1024) {
+				alert("Ảnh không được vượt quá 10MB")
+				return
+			}
+
+			// Validate file type
+			if (!file.type.startsWith("image/")) {
+				alert("Chỉ chấp nhận file ảnh")
+				return
+			}
+
+			// Validate max 20 images
+			if (formData.imageUrl.length >= 20) {
+				alert("Tối đa 20 ảnh")
+				return
+			}
+
+			// Create preview URL
+			const reader = new FileReader()
+			reader.onload = (event) => {
+				const imageUrl = event.target?.result?.toString()
+				setFormData((prev) => ({
+					...prev,
+					imageUrl: [...prev.imageUrl, imageUrl],
+				}))
+			}
+			reader.readAsDataURL(file)
+		})
+	}
+
+	const handleRemoveImage = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      imageUrl: prev.imageUrl.filter((_, i) => i !== index),
+    }))
+  }
+
+	const handleVideoLinkChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      videoLink: e.target.value,
+    }))
+  }
+  const handleVideoUpload = (e) => {
+    const files = e.target.files
+    if (!files) return
+
+    Array.from(files).forEach((file) => {
+      // Validate file type
+      if (!file.type.startsWith("video/")) {
+        alert("Chỉ chấp nhận file video")
+        return
+      }
+
+      // Create preview URL
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const videoUrl = event.target?.result?.toString()
+        setFormData((prev) => ({
+          ...prev,
+          videos: [...prev.videos, videoUrl],
+        }))
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+
+const handleRemoveVideo = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      videos: prev.videos.filter((_, i) => i !== index),
+    }))
+  }
+
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -251,7 +333,7 @@ export default function PostPage() {
 							{activeTab === "khuvuc" && (
 								<div className="space-y-6">
 									{/* Category */}
-									<div className="bg-white rounded-lg shadow-md p-6">
+									{/* <div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4">Loại chuyên mục</h3>
 										<div>
 											<label className="block text-sm font-medium text-gray-700 mb-2">
@@ -271,7 +353,7 @@ export default function PostPage() {
 												))}
 											</select>
 										</div>
-									</div>
+									</div> */}
 
 									{/* Location */}
 									<Location
@@ -281,7 +363,7 @@ export default function PostPage() {
 									/>
 
 									{/* Map */}
-									
+
 								</div>
 							)}
 
@@ -335,7 +417,7 @@ export default function PostPage() {
 														className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 													>
 														<option value="0">đồng/tháng</option>
-														<option value="1">đồng/m²/tháng</option>
+														{/* <option value="1">đồng/m²/tháng</option> */}
 													</select>
 												</div>
 											</div>
@@ -363,7 +445,7 @@ export default function PostPage() {
 
 									{/* Features */}
 									<div className="bg-white rounded-lg shadow-md p-6">
-										<h3 className="text-lg font-bold text-gray-800 mb-4">Đặc điểm nổi bật</h3>
+										<h3 className="text-lg font-bold text-gray-800 mb-4">Tiện ích</h3>
 										<div className="grid grid-cols-2 md:grid-cols-3 gap-3">
 											{FEATURES.map((feature) => (
 												<label key={feature.id} className="flex items-center space-x-2 cursor-pointer">
@@ -401,35 +483,114 @@ export default function PostPage() {
 
 							{/* SECTION 3: HÌNH ẢNH */}
 							{activeTab === "hinhanh" && (
-								<div className="bg-white rounded-lg shadow-md p-6">
-									<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-										<ImageIcon className="w-5 h-5 mr-2" />
-										Hình ảnh
-									</h3>
-									<div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-										<p className="text-gray-600 font-medium mb-2">Tải ảnh từ thiết bị</p>
-										<p className="text-xs text-gray-500">Tối đa 20 ảnh, dung lượng tối đa 10MB/ảnh</p>
+								<div className="space-y-6">
+									<div className="bg-white rounded-lg shadow-md p-6">
+										<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+											<ImageIcon className="w-5 h-5 mr-2" />
+											Hình ảnh
+										</h3>
+
+										{/* Image Upload UI */}
+										<div className="mb-6">
+											<label className="block border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
+												<input
+													type="file"
+													multiple
+													accept="image/*"
+													onChange={handleImageUpload}
+													className="hidden"
+													disabled={formData.imageUrl.length >= 20}
+												/>
+												<p className="text-gray-600 font-medium mb-2">Tải ảnh từ thiết bị</p>
+												<p className="text-xs text-gray-500">Tối đa 20 ảnh, dung lượng tối đa 10MB/ảnh</p>
+											</label>
+										</div>
+
+										{/* Image Preview Grid */}
+										{formData.imageUrl.length > 0 && (
+											<div>
+												<p className="text-sm font-medium text-gray-700 mb-3">
+													Hình ảnh đã tải ({formData.imageUrl.length}/20)
+												</p>
+												<div className="grid grid-cols-3 gap-4">
+													{formData.imageUrl.map((imageUrl, index) => (
+														<div key={index} className="relative group">
+															<img
+																src={imageUrl || "/placeholder.svg"}
+																alt={`Preview ${index + 1}`}
+																className="w-full h-32 object-cover rounded-lg"
+															/>
+															<button
+																type="button"
+																onClick={() => handleRemoveImage(index)}
+																className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+															>
+																×
+															</button>
+														</div>
+													))}
+												</div>
+											</div>
+										)}
 									</div>
 								</div>
 							)}
 
+
 							{/* SECTION 4: VIDEO */}
 							{activeTab === "video" && (
-								<div className="bg-white rounded-lg shadow-md p-6">
-									<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-										<Video className="w-5 h-5 mr-2" />
-										Video
-									</h3>
-									<div className="mb-4">
-										<label className="block text-sm font-medium text-gray-700 mb-2">Video Link (Youtube/Tiktok)</label>
-										<input
-											type="text"
-											placeholder="https://www.youtube.com/watch?v=..."
-											className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-										/>
-									</div>
-									<div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-										<p className="text-gray-600 font-medium mb-2">Tải Video từ thiết bị</p>
+								<div className="space-y-6">
+									<div className="bg-white rounded-lg shadow-md p-6">
+										<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+											<Video className="w-5 h-5 mr-2" />
+											Video
+										</h3>
+
+										{/* Video Link Input */}
+										<div className="mb-6">
+											<label className="block text-sm font-medium text-gray-700 mb-2">
+												Video Link (Youtube/Tiktok)
+											</label>
+											<input
+												type="text"
+												value={formData.videoLink}
+												onChange={handleVideoLinkChange}
+												placeholder="https://www.youtube.com/watch?v=..."
+												className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+											/>
+										</div>
+
+										{/* Video Upload UI */}
+										<div>
+											<label className="block border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
+												<input type="file" multiple accept="video/*" onChange={handleVideoUpload} className="hidden" />
+												<p className="text-gray-600 font-medium mb-2">Tải Video từ thiết bị</p>
+												<p className="text-xs text-gray-500">Hỗ trợ mp4, avi, mov, v.v.</p>
+											</label>
+										</div>
+
+										{/* Video Preview */}
+										{formData.videos.length > 0 && (
+											<div className="mt-6">
+												<p className="text-sm font-medium text-gray-700 mb-3">
+													Video đã tải ({formData.videos.length})
+												</p>
+												<div className="space-y-4">
+													{formData.videos.map((videoUrl, index) => (
+														<div key={index} className="relative">
+															<video src={videoUrl} controls className="w-full h-48 bg-black rounded-lg" />
+															<button
+																type="button"
+																onClick={() => handleRemoveVideo(index)}
+																className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition"
+															>
+																×
+															</button>
+														</div>
+													))}
+												</div>
+											</div>
+										)}
 									</div>
 								</div>
 							)}
