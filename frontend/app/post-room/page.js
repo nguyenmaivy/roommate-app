@@ -4,34 +4,21 @@ import Link from "next/link"
 import { use, useEffect, useState } from "react"
 import { ArrowLeft, ImageIcon, Video, Phone } from "lucide-react"
 import Location from "../../components/Location"
+import { toast } from "react-toastify";
 
-const HCMC_DISTRICTS = [
-	{ id: 1, name: "Quận 1" },
-	{ id: 2, name: "Quận 2" },
-	{ id: 3, name: "Quận 3" },
-	{ id: 4, name: "Quận 4" },
-	{ id: 5, name: "Quận 5" },
-	{ id: 6, name: "Quận 6" },
-	{ id: 7, name: "Quận 7" },
-	{ id: 8, name: "Quận 8" },
-	{ id: 9, name: "Quận 9" },
-	{ id: 10, name: "Quận 10" },
-	{ id: 11, name: "Quận 11" },
-	{ id: 12, name: "Quận 12" },
-	{ id: "bthạnh", name: "Quận Bình Thạnh" },
-	{ id: "btan", name: "Quận Bình Tân" },
-	{ id: "gtrai", name: "Quận Gò Vấp" },
-	{ id: "pnhuận", name: "Quận Phú Nhuận" },
-	{ id: "tâulàu", name: "Quận Tân Bình" },
-	{ id: "tauphu", name: "Quận Tân Phú" },
-	{ id: "thuduc", name: "TP. Thủ Đức" },
-]
+
 
 const RENTAL_TYPES = [
 	{ id: "phong_tro", name: "Cho thuê phòng trọ" },
 	{ id: "nha_nguyen_can", name: "Cho thuê nhà" },
 	{ id: "mat_bang", name: "Cho thuê mặt bằng" },
 	{ id: "can_ho_mini", name: "Cho thuê căn hộ mini" },
+]
+
+const CATEGORIES = [
+  { id: 1, name: "Phòng trọ, nhà trọ" },
+  { id: 2, name: "Nhà thuê nguyên căn" },
+  { id: 3, name: "Căn hộ" },
 ]
 
 const FEATURES = [
@@ -58,7 +45,7 @@ export default function PostPage() {
 		title: "",
 		district: "",
 		ward: "",
-		street: "",
+		address: "",
 		price: "",
 		priceUnit: "0",
 		area: "",
@@ -67,7 +54,7 @@ export default function PostPage() {
 		contactName: "",
 		imageUrl: [],
 		videoUrl: [],
-		videos: [], 
+		videos: [],
 		contactPhone: "",
 	})
 
@@ -141,6 +128,36 @@ export default function PostPage() {
 	}, [activeTab, tabs])
 
 	const goToNextTab = () => {
+		switch (activeTab) {
+			case "khuvuc":
+				if (!formData.district || !formData.ward || !formData.address || !formData.category) {
+					console.log("Form data in khu vuc:", formData)
+					toast("Vui lòng điền đầy đủ thông tin khu vực.", { type: "error" })
+					return
+				}
+				break
+			case "thongtinmota":
+				if (!formData.title || !formData.price || !formData.area || !formData.description) {
+					toast("Vui lòng điền đầy đủ thông tin mô tả.", { type: "error" })
+					return
+				}
+				break
+			case "hinhanh":
+				if (formData.imageUrl.length === 0) {
+					toast("Vui lòng tải lên ít nhất một hình ảnh.", { type: "error" })
+					return
+				}
+				break
+			case "video":
+				// Video is optional
+				break
+			case "thongtinlienhe":
+				if (!formData.contactName || !formData.contactPhone) {
+					toast("Vui lòng điền đầy đủ thông tin liên hệ.", { type: "error" })
+					return
+				}
+				break
+		}
 		if (currentTabIndex < tabs.length - 1) {
 			setActiveTab(tabs[currentTabIndex + 1].id)
 		}
@@ -158,8 +175,28 @@ export default function PostPage() {
 		}))
 	}
 
+	const handleValidateForm = () => {
+		if (!formData.district || !formData.ward || !formData.address || !formData.category) {
+			toast("Vui lòng điền đầy đủ thông tin khu vực.", { type: "error" })
+			return false
+		}
+		if (!formData.title || !formData.price || !formData.area || !formData.description) {
+			toast("Vui lòng điền đầy đủ thông tin mô tả.", { type: "error" })
+			return false
+		}
+		if (formData.imageUrl.length === 0) {
+			toast("Vui lòng tải lên ít nhất một hình ảnh.", { type: "error" })
+			return false
+		}
+		if (!formData.contactName || !formData.contactPhone) {
+			toast("Vui lòng điền đầy đủ thông tin liên hệ.", { type: "error" })
+			return false
+		}
+		return true
+	}
 	const handleSubmit = (e) => {
 		e.preventDefault()
+		if (!handleValidateForm()) return
 		console.log("Form data:", formData)
 		alert("Đăng tin thành công!")
 	}
@@ -201,49 +238,49 @@ export default function PostPage() {
 	}
 
 	const handleRemoveImage = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      imageUrl: prev.imageUrl.filter((_, i) => i !== index),
-    }))
-  }
+		setFormData((prev) => ({
+			...prev,
+			imageUrl: prev.imageUrl.filter((_, i) => i !== index),
+		}))
+	}
 
 	const handleVideoLinkChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      videoLink: e.target.value,
-    }))
-  }
-  const handleVideoUpload = (e) => {
-    const files = e.target.files
-    if (!files) return
+		setFormData((prev) => ({
+			...prev,
+			videoLink: e.target.value,
+		}))
+	}
+	const handleVideoUpload = (e) => {
+		const files = e.target.files
+		if (!files) return
 
-    Array.from(files).forEach((file) => {
-      // Validate file type
-      if (!file.type.startsWith("video/")) {
-        alert("Chỉ chấp nhận file video")
-        return
-      }
+		Array.from(files).forEach((file) => {
+			// Validate file type
+			if (!file.type.startsWith("video/")) {
+				alert("Chỉ chấp nhận file video")
+				return
+			}
 
-      // Create preview URL
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const videoUrl = event.target?.result?.toString()
-        setFormData((prev) => ({
-          ...prev,
-          videos: [...prev.videos, videoUrl],
-        }))
-      }
-      reader.readAsDataURL(file)
-    })
-  }
+			// Create preview URL
+			const reader = new FileReader()
+			reader.onload = (event) => {
+				const videoUrl = event.target?.result?.toString()
+				setFormData((prev) => ({
+					...prev,
+					videos: [...prev.videos, videoUrl],
+				}))
+			}
+			reader.readAsDataURL(file)
+		})
+	}
 
 
-const handleRemoveVideo = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      videos: prev.videos.filter((_, i) => i !== index),
-    }))
-  }
+	const handleRemoveVideo = (index) => {
+		setFormData((prev) => ({
+			...prev,
+			videos: prev.videos.filter((_, i) => i !== index),
+		}))
+	}
 
 
 	return (
@@ -251,7 +288,7 @@ const handleRemoveVideo = (index) => {
 			{/* Sticky Header */}
 			<div className="sticky top-14 z-30 bg-white shadow-sm border-b">
 				<div className="max-w-full px-4 lg:px-8">
-					<div className="flex items-center justify-between py-4 mb-4">
+					<div className="flex items-center justify-between py-2 mb-2">
 						<Link href="/">
 							<button className="flex items-center text-gray-600 hover:text-gray-900 transition font-medium">
 								<ArrowLeft className="w-4 h-4 mr-2" />
@@ -269,7 +306,7 @@ const handleRemoveVideo = (index) => {
 								<button
 									key={tab.id}
 									onClick={() => setActiveTab(tab.id)}
-									className={`py-3 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
+									className={`py-2 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id
 										? "border-orange-500 text-orange-600"
 										: "border-transparent text-gray-600 hover:text-gray-900"
 										}`}
@@ -283,11 +320,11 @@ const handleRemoveVideo = (index) => {
 			</div>
 
 			{/* Main Content */}
-			<div className="max-w-full px-4 lg:px-8 py-8">
-				<div className="grid lg:grid-cols-4 gap-8">
+			<div className="max-w-full px-2 lg:px-4 py-4">
+				<div className="grid lg:grid-cols-4 gap-4">
 					{/* Sidebar - Desktop Only */}
 					<div className="hidden lg:block lg:col-span-1">
-						<div className="bg-white rounded-lg shadow-md p-6 sticky top-52">
+						<div className="bg-white rounded-lg shadow-md p-6 sticky top-45">
 							<div className="text-center mb-6 pb-6 border-b">
 								<div className="w-12 h-12 rounded-full bg-gray-300 mx-auto mb-3"></div>
 								<h3 className="font-semibold text-gray-800">
@@ -328,12 +365,11 @@ const handleRemoveVideo = (index) => {
 
 					{/* Form - Main Content */}
 					<div className="lg:col-span-3">
-						<form onSubmit={handleSubmit} className="space-y-6">
+						<form onSubmit={handleSubmit} className="space-y-4">
 							{/* SECTION 1: KHU VỰC */}
 							{activeTab === "khuvuc" && (
-								<div className="space-y-6">
-									{/* Category */}
-									{/* <div className="bg-white rounded-lg shadow-md p-6">
+								<div className="space-y-4">
+									<div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4">Loại chuyên mục</h3>
 										<div>
 											<label className="block text-sm font-medium text-gray-700 mb-2">
@@ -353,23 +389,18 @@ const handleRemoveVideo = (index) => {
 												))}
 											</select>
 										</div>
-									</div> */}
-
-									{/* Location */}
+									</div>
 									<Location
 										formData={formData}
 										setFormData={setFormData}
 										handleChange={handleChange}
 									/>
-
-									{/* Map */}
-
 								</div>
 							)}
 
 							{/* SECTION 2: THÔNG TIN MÔ TẢ */}
 							{activeTab === "thongtinmota" && (
-								<div className="space-y-6">
+								<div className="space-y-4">
 									{/* Title */}
 									<div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4">Tiêu đề</h3>
@@ -483,7 +514,7 @@ const handleRemoveVideo = (index) => {
 
 							{/* SECTION 3: HÌNH ẢNH */}
 							{activeTab === "hinhanh" && (
-								<div className="space-y-6">
+								<div className="space-y-4">
 									<div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
 											<ImageIcon className="w-5 h-5 mr-2" />
@@ -539,7 +570,7 @@ const handleRemoveVideo = (index) => {
 
 							{/* SECTION 4: VIDEO */}
 							{activeTab === "video" && (
-								<div className="space-y-6">
+								<div className="space-y-4">
 									<div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
 											<Video className="w-5 h-5 mr-2" />
@@ -597,7 +628,7 @@ const handleRemoveVideo = (index) => {
 
 							{/* SECTION 5: THÔNG TIN LIÊN HỆ */}
 							{activeTab === "thongtinlienhe" && (
-								<div className="space-y-6">
+								<div className="space-y-4">
 									<div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
 											<Phone className="w-5 h-5 mr-2" />
@@ -622,7 +653,6 @@ const handleRemoveVideo = (index) => {
 													name="contactPhone"
 													value={formData.contactPhone}
 													onChange={handleChange}
-													readOnly
 													className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 												/>
 											</div>

@@ -76,9 +76,9 @@ export default function AutocompleteAddress({ formData, setFormData }) {
         setFormData((prev) => ({
             ...prev,
             locationCoords: [detail.lng, detail.lat],
-            address: detail.address || "",
+            street: detail.address || "",
             ward: detail.ward || "",
-            district: detail.district || "",
+            district: detail.city || "",
         }));
     };
 
@@ -96,7 +96,7 @@ export default function AutocompleteAddress({ formData, setFormData }) {
 
             {/* Loading */}
             {loading && (
-                <div className="absolute right-3 top-3 animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full"></div>
+                <div className="absolute right-3 top-10 animate-spin w-4 h-4 border-3 border-gray-300 border-t-blue-500 rounded-full"></div>
             )}
 
             {/* Suggestion box */}

@@ -74,7 +74,7 @@ const PickerMap = ({ locationCoords, onSelectLocation }) => {
     return (
         <div
             ref={mapContainer}
-            className="w-full h-96 rounded-lg shadow"
+            className="w-full h-1/1 rounded-lg shadow"
         />
     );
 };
