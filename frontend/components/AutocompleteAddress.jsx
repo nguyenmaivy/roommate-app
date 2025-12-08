@@ -31,9 +31,7 @@ export default function AutocompleteAddress({ formData, setFormData }) {
             setSuggestions([]);
             return;
         }
-
         setLoading(true);
-
         try {
             const url =
                 `https://maps.vietmap.vn/api/autocomplete/v4` +
@@ -46,7 +44,6 @@ export default function AutocompleteAddress({ formData, setFormData }) {
         } catch (err) {
             console.error("Search error:", err);
         }
-
         setLoading(false);
     };
 

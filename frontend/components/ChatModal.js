@@ -74,7 +74,9 @@ export default function ChatModal({ room, onClose }) {
         {/* Header */}
         <div className="p-4 border-b bg-indigo-500 text-white rounded-t-xl flex justify-between items-center">
           <h3 className="font-bold flex items-center">
-            <MessageSquare className="w-5 h-5 mr-2" />
+            <div className="size-9">
+              <MessageSquare className="w-5 h-5 mr-2" />
+            </div>
             {room.roomTitle || "Phòng chat"}
           </h3>
           <button onClick={onClose} className="hover:text-gray-200">

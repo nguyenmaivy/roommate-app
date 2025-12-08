@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react"
 import { ArrowLeft, ImageIcon, Video, Phone } from "lucide-react"
 import Location from "../../components/Location"
 import { toast } from "react-toastify";
+import { useUser } from "../Store/UserContext";
 
 
 
@@ -16,9 +17,9 @@ const RENTAL_TYPES = [
 ]
 
 const CATEGORIES = [
-  { id: 1, name: "Phòng trọ, nhà trọ" },
-  { id: 2, name: "Nhà thuê nguyên căn" },
-  { id: 3, name: "Căn hộ" },
+	{ id: 1, name: "Phòng trọ, nhà trọ" },
+	{ id: 2, name: "Nhà thuê nguyên căn" },
+	{ id: 3, name: "Căn hộ" },
 ]
 
 const FEATURES = [
@@ -37,7 +38,8 @@ const FEATURES = [
 
 export default function PostPage() {
 	const [activeTab, setActiveTab] = useState("khuvuc")
-	const [user, setUser] = useState(null)
+	const { user } = useUser();
+
 	const [isLastTab, setIsLastTab] = useState(false)
 	const [currentTabIndex, setCurrentTabIndex] = useState(0)
 	const [formData, setFormData] = useState({
@@ -58,61 +60,6 @@ export default function PostPage() {
 		contactPhone: "",
 	})
 
-	useEffect(() => {
-		let isMounted = true
-
-		const fetchCurrentUser = async () => {
-			try {
-				const res = await fetch("http://localhost:3001/me", {
-					credentials: "include",
-				})
-
-				if (!res.ok) {
-					if (isMounted) setUser(null)
-					return
-				}
-
-				const data = await res.json()
-				if (isMounted) {
-					setUser(data.user)
-				}
-			} catch {
-				if (isMounted) setUser(null)
-			}
-		}
-
-		fetchCurrentUser()
-
-		return () => {
-			isMounted = false
-		}
-	}, [])
-
-	useEffect(() => {
-		if (!user) return
-
-		setFormData((prev) => {
-			let updated = false
-			const next = { ...prev }
-
-			if (user.name && prev.contactName !== user.name) {
-				next.contactName = user.name
-				updated = true
-			}
-
-			if (user.phone && prev.contactPhone !== user.phone) {
-				next.contactPhone = user.phone
-				updated = true
-			}
-
-			if (!updated) {
-				return prev
-			}
-
-			return next
-		})
-	}, [user])
-
 	const tabs = [
 		{ id: "khuvuc", label: "Khu vực" },
 		{ id: "thongtinmota", label: "Thông tin mô tả" },
@@ -130,7 +77,7 @@ export default function PostPage() {
 	const goToNextTab = () => {
 		switch (activeTab) {
 			case "khuvuc":
-				if (!formData.district || !formData.ward || !formData.address || !formData.category) {
+				if (!formData.district || !formData.ward || !formData.street || !formData.category) {
 					console.log("Form data in khu vuc:", formData)
 					toast("Vui lòng điền đầy đủ thông tin khu vực.", { type: "error" })
 					return
@@ -176,7 +123,7 @@ export default function PostPage() {
 	}
 
 	const handleValidateForm = () => {
-		if (!formData.district || !formData.ward || !formData.address || !formData.category) {
+		if (!formData.district || !formData.ward || !formData.street || !formData.category) {
 			toast("Vui lòng điền đầy đủ thông tin khu vực.", { type: "error" })
 			return false
 		}
@@ -194,11 +141,43 @@ export default function PostPage() {
 		}
 		return true
 	}
-	const handleSubmit = (e) => {
+	const handleSubmit = async (e) => {
 		e.preventDefault()
 		if (!handleValidateForm()) return
+		const dataToSubmit = {}
+		if (formData.category == 1) {
+			dataToSubmit.rental_type = "Phòng trọ, nhà trọ"
+		}
+		else if (formData.category == 2) {
+			dataToSubmit.rental_type = "Nhà thuê nguyên căn"
+		}
+		else if (formData.category == 3) {
+			dataToSubmit.rental_type = "Căn hộ"
+		}
+		dataToSubmit.title = formData.title
+		dataToSubmit.address = `${formData.street}, ${formData.ward}, ${formData.district}`
+		dataToSubmit.price = formData.price
+		dataToSubmit.area = formData.area
+		dataToSubmit.amenities = formData.features
+		dataToSubmit.description = formData.description
+		dataToSubmit.imageUrl = formData.imageUrl
+		dataToSubmit.location = { lat: formData.locationCoords[1], lng: formData.locationCoords[0] }
+		dataToSubmit.landlordId = user.id
+		// Gửi dữ liệu đến backend
+		const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			credentials: "include",
+			body: JSON.stringify(dataToSubmit),
+		})
+		if (!res.ok) {
+			toast("Đăng tin thất bại. Vui lòng thử lại.", { type: "error" })
+			return
+		}
+		toast("Đăng tin thành công!", { type: "success" })
 		console.log("Form data:", formData)
-		alert("Đăng tin thành công!")
 	}
 
 	const handleImageUpload = (e) => {

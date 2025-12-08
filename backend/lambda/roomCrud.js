@@ -6,12 +6,23 @@ export const __setDocumentClient = (client) => { ddb = client; };
 
 const ROOMS_TABLE = "Rooms";
 
-// CREATE
+const formatDate = () => {
+  const d = new Date();
+  const hh = d.getHours().toString().padStart(2, "0");
+  const mm = d.getMinutes().toString().padStart(2, "0");
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = (d.getMonth() + 1).toString().padStart(2, "0");
+  const year = d.getFullYear();
+  return `${hh}:${mm} ${day}/${month}/${year}`;
+};
+
+// ✅ CREATE ROOM
 export const createRoom = async (event) => {
   const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
 
   const {
     title,
+    rental_type,
     price,
     address,
     area,
@@ -19,28 +30,39 @@ export const createRoom = async (event) => {
     landlordId,
     description,
     imageUrl,
+    location, // { lat, lng }
   } = body;
 
-  if (!title || !price || !address || !area) {
+  if (!title || !price || !address || !area || !location) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: "Missing required fields" }),
+      body: JSON.stringify({
+        error: "Missing required fields", 
+        title,
+        price,
+        address,
+        area,
+        location,
+      }),
     };
   }
 
-  const id = uuidv4(); // ✅ Dùng key "id" đúng với DynamoDB
+  const id = uuidv4();
 
   const item = {
     id,
     title,
-    price,
+    rental_type: rental_type || "Cho thuê phòng trọ",
+    date: formatDate(),
     address,
+    price,
     area,
-    amenities: amenities || [],
+    amenities: Array.isArray(amenities) ? amenities : [],
     landlordId: landlordId || "unknown",
     description: description || "",
-    imageUrl: imageUrl || "",
-    createdAt: new Date().toISOString(),
+    imageUrl: Array.isArray(imageUrl) ? imageUrl : [],
+    location, // { lat, lng }
+    date: new Date().toISOString(),
   };
 
   try {
@@ -67,7 +89,7 @@ export const createRoom = async (event) => {
   }
 };
 
-// READ ALL
+// ✅ READ ALL
 export const getRooms = async () => {
   try {
     const result = await ddb.send(new ScanCommand({ TableName: ROOMS_TABLE }));
@@ -78,7 +100,7 @@ export const getRooms = async () => {
   }
 };
 
-// READ ONE
+// ✅ READ ONE
 export const getRoom = async (event) => {
   const { roomId } = event.params || event.pathParameters || {};
 
@@ -89,7 +111,7 @@ export const getRoom = async (event) => {
     const result = await ddb.send(
       new GetCommand({
         TableName: ROOMS_TABLE,
-        Key: { id: roomId }, // ✅ PK đúng
+        Key: { id: roomId },
       })
     );
 
@@ -103,35 +125,48 @@ export const getRoom = async (event) => {
   }
 };
 
-
-// UPDATE
+// ✅ UPDATE
 export async function updateRoom(roomId, body) {
-  console.log("Updating room:", body);
-  const { title, price, address, area, amenities, landlordId, description, imageUrl } = body;
+  const {
+    title,
+    rental_type,
+    price,
+    address,
+    area,
+    amenities,
+    landlordId,
+    description,
+    imageUrl,
+    location,
+  } = body;
 
   const params = {
     TableName: ROOMS_TABLE,
     Key: { id: roomId },
     UpdateExpression: `
-      set 
+      SET 
         title = :t,
+        rental_type = :rt,
         price = :p,
         address = :addr,
         area = :a,
         amenities = :am,
-        landlordId = :l,
-        description = :desc,
-        imageUrl = :img
+        landlordId = :lid,
+        description = :d,
+        imageUrl = :img,
+        location = :loc
     `,
     ExpressionAttributeValues: {
       ":t": title,
+      ":rt": rental_type,
       ":p": price,
       ":addr": address,
       ":a": area,
-      ":am": amenities || [],
-      ":l": landlordId,
-      ":desc": description,
-      ":img": imageUrl,
+      ":am": Array.isArray(amenities) ? amenities : [],
+      ":lid": landlordId,
+      ":d": description,
+      ":img": Array.isArray(imageUrl) ? imageUrl : [],
+      ":loc": location,
     },
     ReturnValues: "ALL_NEW",
   };
@@ -141,7 +176,7 @@ export async function updateRoom(roomId, body) {
     return {
       statusCode: 200,
       body: JSON.stringify({
-        message: "✅ Room updated successfully",
+        message: "Room updated successfully",
         room: result.Attributes,
       }),
     };
@@ -154,8 +189,7 @@ export async function updateRoom(roomId, body) {
   }
 }
 
-
-// DELETE
+// ✅ DELETE
 export const deleteRoom = async (event) => {
   const { roomId } = event.params || event.pathParameters || {};
 
@@ -166,7 +200,7 @@ export const deleteRoom = async (event) => {
     await ddb.send(
       new DeleteCommand({
         TableName: ROOMS_TABLE,
-        Key: { id: roomId }, // ✅ PK đúng
+        Key: { id: roomId },
       })
     );
 
@@ -179,4 +213,3 @@ export const deleteRoom = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
-

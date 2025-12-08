@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, CheckCircle, LayoutGrid, X } from 'lucide-react';
 import RoomCard from '@/components/RoomCard';
 import RoomMap from '@/components/RoomMap';
 import ReviewModal from '@/components/ReviewModal';
 import { AMENITIES, USER_ROLES } from '@/mockData';
+
+const VIETMAP_rereverse_API_KEY = process.env.NEXT_PUBLIC_VIETMAP_reverse_API_KEY;
 
 export default function SearchPage() {
   const [rooms, setRooms] = useState([]);
@@ -19,11 +21,14 @@ export default function SearchPage() {
     maxArea: '',
     amenities: [],
     showFavorites: false,
+    searchCoords: null,
   });
   const [reviewRoom, setReviewRoom] = useState(null);
   const [chatRoom, setChatRoom] = useState(null); // chưa sử dụng
   const isLandlord = user.role === USER_ROLES.LANDLORD;
-
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchCoords, setSearchCoords] = useState(null);
+  const timeoutRef = useRef(null);
   useEffect(() => {
     async function fetchRooms() {
       try {
@@ -32,9 +37,9 @@ export default function SearchPage() {
 
         const updatedRooms = data.map(room => ({
           ...room,
-          isFavorite: false, 
+          isFavorite: false,
         }));
-        
+
         setRooms(updatedRooms);
       } catch (error) {
         console.error("❌ Error fetching rooms:", error);
@@ -75,8 +80,8 @@ export default function SearchPage() {
   }, []);
 
   const filteredRooms = useMemo(() => {
-    return rooms.filter(room => {
-      if (filters.location && !room.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
+    let result = rooms.filter(room => {
+      // if (filters.location && !room.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
       if (filters.minPrice && room.price < Number(filters.minPrice)) return false;
       if (filters.maxPrice && room.price > Number(filters.maxPrice)) return false;
       if (filters.minArea && room.area < Number(filters.minArea)) return false;
@@ -86,7 +91,21 @@ export default function SearchPage() {
       if (isLandlord && room.landlordId !== user.id) return false;
       return true;
     });
-  }, [rooms, filters, favorites, isLandlord, user.id]);
+    if (searchCoords) {
+      result = result
+        .map(room => ({
+          ...room,
+          distance: calculateDistance(
+            searchCoords.lat,
+            searchCoords.lng,
+            room.location.lat,
+            room.location.lng
+          )
+        }))
+        .sort((a, b) => a.distance - b.distance); // gần -> xa
+    }
+    return result;
+  }, [rooms, filters, favorites, isLandlord, user.id, searchCoords]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -103,6 +122,64 @@ export default function SearchPage() {
   const handleClearFilters = () => {
     setFilters({ location: '', minPrice: '', maxPrice: '', minArea: '', maxArea: '', amenities: [], showFavorites: false });
   };
+  const handleVietmapInput = (e) => {
+    const text = e.target.value;
+    setFilters(prev => ({ ...prev, location: text }));
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = setTimeout(() => {
+      searchVietmap(text);
+    }, 500);
+  };
+
+  const searchVietmap = async (text) => {
+    if (!text.trim()) {
+      setSuggestions([]);
+      return;
+    }
+
+    try {
+      const url = `https://maps.vietmap.vn/api/autocomplete/v4?apikey=${VIETMAP_rereverse_API_KEY}&text=${encodeURIComponent(text)}&cityId=12`; // TP.HCM
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      setSuggestions(data || []);
+    } catch (e) {
+      console.error("Vietmap error:", e);
+    }
+  };
+
+  const handleSelectSuggestion = async (item) => {
+    setFilters(prev => ({ ...prev, location: item.display }));
+    setSuggestions([]);
+
+    const ref_id = item.ref_id.replace("geocode:", "auto:");
+    const url = `https://maps.vietmap.vn/api/place/v4?refid=${ref_id}&apikey=${VIETMAP_rereverse_API_KEY}`;
+
+    const res = await fetch(url);
+    const detail = await res.json();
+
+    if (!detail.lat || !detail.lng) return;
+
+    setSearchCoords({ lat: detail.lat, lng: detail.lng });
+
+  };
+  function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) ** 2;
+
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
 
   return (
     <div className="lg:flex lg:space-x-8">
@@ -112,8 +189,35 @@ export default function SearchPage() {
             <Search className="w-5 h-5 mr-2 text-indigo-500" /> Tìm kiếm & Lọc
           </h2>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí (Quận/Huyện)</label>
-            <input type="text" name="location" value={filters.location} onChange={handleFilterChange} placeholder="VD: Quận 5, Thủ Đức" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vị trí (Tìm theo VietMap)
+            </label>
+
+            <input
+              type="text"
+              value={filters.location}
+              onChange={handleVietmapInput}
+              placeholder="Nhập địa điểm: Q5, Thủ Đức..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+
+            {/* Gợi ý địa điểm */}
+            {suggestions.length > 0 && (
+              <ul className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-60 overflow-y-auto z-50">
+                {suggestions.map((item, i) => (
+                  <li
+                    key={i}
+                    onClick={() => handleSelectSuggestion(item)}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <div className="font-semibold">{item.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {item.address}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Khoảng giá (VNĐ)</label>
@@ -132,16 +236,31 @@ export default function SearchPage() {
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Tiện ích</label>
             <div className="grid grid-cols-2 gap-2">
-              {AMENITIES.map(amenity => (
-                <button
-                  key={amenity.key}
-                  onClick={() => handleAmenityFilter(amenity.key)}
-                  className={`flex items-center justify-center p-2 text-xs rounded-lg border transition ${filters.amenities.includes(amenity.key) ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                    }`}
-                >
-                  <CheckCircle className="w-3 h-3 mr-1" /> {amenity.label}
-                </button>
-              ))}
+              {AMENITIES.map(amenity => {
+                console.log('Rendering amenity filter:', filters);
+                return (
+                  <button
+                    key={amenity.key}
+                    onClick={() => handleAmenityFilter(amenity.key)}
+                    className={`flex items-center justify-center gap-1 p-2 text-xs rounded-lg border transition 
+                      ${filters.amenities.includes(amenity.key)
+                        ? 'bg-indigo-500 text-white border-indigo-500'
+                        : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      }`}
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    {amenity.label}
+
+                    {/* Badge số lượng phòng */}
+                    {filters.amenities.includes(amenity.key) && (
+                      <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-white/20 text-white font-semibold">
+                        {filteredRooms.length}
+                      </span>
+                    )}
+                  </button>
+
+                )
+              })}
             </div>
           </div>
           {user.role === USER_ROLES.STUDENT && (
@@ -163,7 +282,10 @@ export default function SearchPage() {
         </div>
       </div>
       <div className="lg:w-3/4 w-full">
-        <RoomMap rooms={filteredRooms} />
+        <RoomMap
+          rooms={filteredRooms}
+          searchCoords={searchCoords}
+        />
         <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
           <LayoutGrid className="w-6 h-6 mr-2 text-indigo-500" />
           {isLandlord ? 'Phòng trọ đã đăng' : 'Danh sách phòng trọ'} ({filteredRooms.length})

@@ -3,23 +3,22 @@ import LoadingSpinner from "./LoadingSpinner";
 import PickerMap from "./PickerMap"
 import AutocompleteAddress from "./AutocompleteAddress";
 
-const API_GET_DISTRICTS = "https://provinces.open-api.vn/api/v2/p/79?depth=2";
 const VIETMAP_rereverse_API_KEY = process.env.NEXT_PUBLIC_VIETMAP_reverse_API_KEY;
 
 const Location = (porps) => {
     const { formData, setFormData, handleChange } = porps;
-    const [wards, setWards] = useState([]);
+    // const [wards, setWards] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    useEffect(() => {
-        fetch(API_GET_DISTRICTS)
-            .then((response) => response.json())
-            .then((data) => {
-                setWards(data.wards);
-            })
-            .catch((error) => {
-                console.error("Error fetching districts:", error);
-            });
-    }, []);
+    // useEffect(() => {
+    //     fetch(API_GET_DISTRICTS)
+    //         .then((response) => response.json())
+    //         .then((data) => {
+    //             setWards(data.wards);
+    //         })
+    //         .catch((error) => {
+    //             console.error("Error fetching districts:", error);
+    //         });
+    // }, []);
 
     useEffect(() => {
         const fetchReverse = async () => {
@@ -60,10 +59,6 @@ const Location = (porps) => {
             locationCoords: [lng, lat],
         }));
     };
-
-    if (!wards || wards.length === 0) {
-        return (<LoadingSpinner />);
-    }
 
     return (
         <>
