@@ -17,7 +17,7 @@ export const USERS = [
     "contact_name":"Trần Thị Thu Thảo",
     "contact_phone":983574883,
     "id":"L1",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",    // [landlord | tenant]
     "email":"phuhuynh.010104@gmail.com"
   },
@@ -25,7 +25,7 @@ export const USERS = [
     "contact_name":"Nguyễn văn rẻ",
     "contact_phone":210931337,
     "id":"L2",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.020104@gmail.com"
   },
@@ -33,7 +33,7 @@ export const USERS = [
     "contact_name":"Nguyễn Văn Hiển",
     "contact_phone":907658595,
     "id":"L3",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.030104@gmail.com"
   },
@@ -41,7 +41,7 @@ export const USERS = [
     "contact_name":"trannhatphuong",
     "contact_phone":170903444,
     "id":"L4",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.040104@gmail.com"
   },
@@ -49,7 +49,7 @@ export const USERS = [
     "contact_name":"Cô Tư",
     "contact_phone":902453432,
     "id":"L5",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.050104@gmail.com"
   },
@@ -57,7 +57,7 @@ export const USERS = [
     "contact_name":"Hoàng Trung Thông",
     "contact_phone":932648778,
     "id":"L6",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.060104@gmail.com"
   },
@@ -65,7 +65,7 @@ export const USERS = [
     "contact_name":"Nhi Quỳnh",
     "contact_phone":220858919,
     "id":"L7",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.070104@gmail.com"
   },
@@ -73,7 +73,7 @@ export const USERS = [
     "contact_name":"Sương Elly",
     "contact_phone":230384304,
     "id":"L8",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.080104@gmail.com"
   },
@@ -81,7 +81,7 @@ export const USERS = [
     "contact_name":"Nguyễn Hoàng",
     "contact_phone":250888051,
     "id":"L9",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.090104@gmail.com"
   },
@@ -89,7 +89,7 @@ export const USERS = [
     "contact_name":"Mạc Phú",
     "contact_phone":250388927,
     "id":"L10",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.100104@gmail.com"
   },
@@ -97,7 +97,7 @@ export const USERS = [
     "contact_name":"nhadat247",
     "contact_phone":160902324,
     "id":"L11",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.110104@gmail.com"
   },
@@ -105,7 +105,7 @@ export const USERS = [
     "contact_name":"Lê Nguyễn Hà Anh",
     "contact_phone":220983955,
     "id":"L12",
-    "password":"1234",
+    "password":"123456",
     "role":"landlord",
     "email":"phuhuynh.120104@gmail.com"
   }

@@ -1,4 +1,4 @@
-version: "3.7"
+version: "3.8"  # Nâng từ 3.7 cho ổn định
 
 services:
   n8n:
@@ -10,40 +10,55 @@ services:
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=changeme
+      - N8N_BASIC_AUTH_PASSWORD=changeme  # Đổi password mạnh!
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - N8N_PORT=5678
-      # 👇 thêm dòng này — sẽ cập nhật bằng URL ngrok sau
-      - WEBHOOK_URL=https://REPLACE_WITH_NGROK_URL
+      # Webhook URL: Dùng ngrok domain (check http://localhost:4040 sau khi up)
+      - WEBHOOK_URL=https://unharangued-lidia-defectless.ngrok-free.dev/
     volumes:
-      - ./n8n_data:/home/node/.n8n
-      - ./workflows:/workflows:ro
+      - ./n8n_data:/home/node/.n8n  # Data persist
+      - ./workflows:/workflows:ro   # Workflows read-only
 
   n8n-importer:
     image: n8nio/n8n:latest
     depends_on:
       - n8n
     restart: "no"
-    entrypoint: ["sh","-c"]
+    entrypoint: ["sh", "-c"]
     command: |
-      sleep 8;
-      for f in /workflows/*.json; do
+      sleep 10;  # Đợi n8n ready
+      cd /workflows;
+      for f in *.json; do
         if [ -f "$f" ]; then
           echo "Importing $f";
-          n8n import:workflow --input="$f" || true;
+          n8n import:workflow --input="$f" --separate=true || true;  # --separate để tránh overwrite
         fi;
       done;
-      echo "Workflow import finished";
+      echo "Import finished";
       exit 0
     volumes:
       - ./workflows:/workflows:ro
+    # Không expose port, chỉ run once
 
-  # 👇 thêm service ngrok ở cuối file
   ngrok:
     image: ngrok/ngrok:latest
     container_name: roommate_ngrok
-    command: http 5678 --authtoken=${NGROK_AUTHTOKEN}
+    restart: unless-stopped  # Thêm để ngrok chạy liên tục
+    command: http n8n:5678 --domain=unharangued-lidia-defectless.ngrok-free.dev  # Fix: n8n thay vì roommate_n8n
     ports:
-      - "4040:4040"
+      - "4040:4040"  # Dashboard ngrok
+    env_file:
+      - .env  # Load NGROK_AUTHTOKEN
+
+  # Optional: LocalStack (giả lập AWS local, free, để test Lambda/DynamoDB mà không cần AWS thật)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: roommate_localstack
+    ports:
+      - "4566:4566"  # AWS endpoint local
     environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+      - SERVICES=dynamodb,lambda,apigateway
+      - DEBUG=1
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "./localstack_data:/var/lib/localstack"  # Persist data

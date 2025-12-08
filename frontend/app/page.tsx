@@ -9,6 +9,8 @@ import RoomFormModal from "@/components/RoomFormModal"
 import ChatModal from "@/components/ChatModal"
 import { useUser } from "./Store/UserContext"
 import { AMENITIES } from "@/mockData"
+import RoomChatbot from "@/components/RoomChatbot"
+import FloatingChatButton from "@/components/FloatingChatButton"
 
 interface Room {
   id: string
@@ -228,7 +230,7 @@ export default function Home() {
       }
       return true
     })
-  }, [rooms, filters, favorites, user?.id])
+  }, [rooms, filters, favorites, user?.id, isLandlord])
 
   // --- UI CONTROLS ---
 
@@ -264,9 +266,12 @@ export default function Home() {
       credentials: "include",
     });
     const data = await res.json();
-    setUser((prev) => ({ ...prev, role: data.role }));
+    setUser((prev) => (prev ? { ...prev, role: data.role } : { role: data.role }));
     handleClearFilters()
   }
+  // chat bot
+  const [openChat, setOpenChat] = useState(false)
+
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans antialiased">
@@ -457,6 +462,25 @@ export default function Home() {
 
       {/* Modal Chat Mini */}
       {chatRoom && <ChatModal room={chatRoom} onClose={() => setChatRoom(null)} />}
+
+      {/* Chatbot */}
+      {/* Nút chat nổi */}
+      <FloatingChatButton onClick={() => setOpenChat(true)} />
+
+      {/* Chatbot popup */}
+      {openChat && (
+        <div className="fixed bottom-24 right-6 w-[380px] h-[600px] bg-white rounded-2xl shadow-2xl z-50 overflow-hidden">
+          <RoomChatbot />
+
+          {/* Nút đóng */}
+          <button
+            onClick={() => setOpenChat(false)}
+            className="absolute top-4 right-4 text-white hover:text-red-500"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   )
 }
