@@ -75,11 +75,16 @@ export default function RoomDetailPage() {
           <div className="lg:col-span-2">
             {/* Ảnh phòng trọ */}
             <div className="mb-6">
-              <img
+              {/* <img
                 src={room.imageUrl || room.images?.[0]}
                 alt={room.title || room.address}
                 className="w-full h-96 object-cover rounded-xl shadow-lg"
                 onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x400/CCCCCC/333333?text=No+Image" }}
+              /> */}
+                <img
+                src={room.imageUrl?.[0] || "/placeholder.jpg"}
+                alt="Room"
+                className="w-full h-64 object-cover rounded-lg"
               />
             </div>
 

@@ -18,7 +18,7 @@ export const USERS = [
     "contact_phone":983574883,
     "id":"L1",
     "password":"123456",
-    "role":"landlord",    // [landlord | tenant]
+    "role":"admin",    // [admin | landlord | tenant]
     "email":"phuhuynh.010104@gmail.com"
   },
   {
@@ -123,7 +123,8 @@ export const ROOMS = [
     "amenities": ["kit", "airCon", "Paking"],
     "landlordId": "L1",
     "description": "GIÁ CHỈ 2tr - 3,8tr/ tháng Còn vài phòng gần GIGAMALL - ĐH LUẬT THỦ ĐỨC cần cho thuê - Diện tích: 15-28m2 chưa tính gác, phòng mới sạch đẹp, có lối đi riêng, máy lạnh inverter đời mới, WC, bếp nấu ăn riêng từng phòng, có chỗ để xe, có camera giám sát, báo trộm đảm bảo an ninh, wifi băng thông lớn, tốc độ cao học tập và làm việc thoải mái,.\n. Vị trí giáp Bình Thạnh, cầu Bình Triệu, Bình Lợi, chợ Coop Mart Bình Triệu, DH LUẬT, khu đô thị VẠN PHÚC thuận tiện qua các trường ĐH như HUTECH, GTVT, NGOẠI THƯƠNG, Đh CÔNG NGHIỆP Gò Vấp,…. Các phí khác: + Điện: 3,5k/1kwh + Nước: 25k/1 khối + Rác,wifi: 30k/1 phòng - Địa chỉ: số 419 Quốc lộ 13, Hiệp Bình Chánh, Thủ Đức. - Liên hệ: chị Thảo 098-357-4883 hoặc anh Chứ 0937-488-999 để xem phòng",
-    "imageUrl": ["https://pt123.cdn.static123.com/images/thumbs/900x600/fit/2021/11/22/z2922938006858-ce9ae711ab99e0e9b13ba55081ed2830_1637566208.jpg", 
+    "imageUrl": ["https://aws-sam-cli-managed-default-samclisourcebucket-2gedu8givvew.s3.us-east-1.amazonaws.com/roommate-app-images/Img2.jpg",
+                  "https://pt123.cdn.static123.com/images/thumbs/900x600/fit/2021/11/22/z2922938006858-ce9ae711ab99e0e9b13ba55081ed2830_1637566208.jpg", 
                   "https://pt123.cdn.static123.com/images/thumbs/900x600/fit/2021/11/22/z2922938040060-facb7e0510e8e4f989230b3dd13c2cdd_1637566179.jpg", 
                   "https://pt123.cdn.static123.com/images/thumbs/900x600/fit/2021/11/22/z2922938049365-ead7c7a3c79a5f4b22bc4192034dc8f0_1637566179.jpg", 
                   "https://pt123.cdn.static123.com/images/thumbs/900x600/fit/2021/11/22/z2922937916198-349c1da39fedd2c07fa3db7033c8c5b2_1637566185.jpg", 

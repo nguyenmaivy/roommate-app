@@ -1,0 +1,60 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { GetCommand } from "@aws-sdk/lib-dynamodb";
+
+let ddb;
+
+export const __setDocumentClient = (client) => {
+  ddb = client;
+};
+
+const USERS_TABLE = "Users";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+
+export const handler = async (event) => {
+  if (!ddb) {
+    const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
+    const { DynamoDBDocumentClient } = await import("@aws-sdk/lib-dynamodb");
+
+    const client = new DynamoDBClient({
+      region: "us-east-1",
+      endpoint: "http://localhost:8000",
+      credentials: { accessKeyId: "fake", secretAccessKey: "fake" },
+    });
+
+    ddb = DynamoDBDocumentClient.from(client);
+  }
+
+  const body = JSON.parse(event.body || "{}");
+  const { email, password } = body;
+
+  if (!email || !password) {
+    return { statusCode: 400, body: JSON.stringify({ error: "Email and password required" }) };
+  }
+
+  const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { email } }));
+  const user = result.Item;
+
+  if (!user) {
+    return { statusCode: 404, body: JSON.stringify({ error: "User not found" }) };
+  }
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) {
+    return { statusCode: 401, body: JSON.stringify({ error: "Invalid password" }) };
+  }
+
+  const token = jwt.sign({ email, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
+
+  return {
+    statusCode: 200,
+    headers: {
+      "Set-Cookie": `token=${token}; HttpOnly; Path=/; Max-Age=3600`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: "Login successful",
+      user: { name: user.name, email: user.email, role: user.role },
+    }),
+  };
+};

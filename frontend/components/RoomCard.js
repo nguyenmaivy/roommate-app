@@ -16,7 +16,7 @@ export default function RoomCard({ room, currentUserId, userRole, toggleFavorite
     <div className="bg-white border border-gray-100 shadow-xl rounded-xl overflow-hidden hover:shadow-2xl transition duration-300 transform hover:-translate-y-1 flex flex-col md:flex-row">
       {/* Ảnh Phòng Trọ (S3/CloudFront) */}
       <div className="md:w-1/3 w-full h-48 md:h-auto overflow-hidden">
-        <img
+        {/* <img
           src={room.imageUrl || room.images?.[0]}
           alt={room.title || room.address}
           className="w-full h-full object-cover transition duration-300 hover:scale-105"
@@ -24,6 +24,12 @@ export default function RoomCard({ room, currentUserId, userRole, toggleFavorite
             e.target.onerror = null
             e.target.src = "https://placehold.co/400x300/CCCCCC/333333?text=No+Image"
           }}
+        /> */}
+        
+        <img
+          src={room.imageUrl?.[0] || "/placeholder.jpg"}
+          alt="Room"
+          className="w-full h-64 object-cover rounded-lg"
         />
       </div>
       {/* Chi tiết Phòng Trọ */}

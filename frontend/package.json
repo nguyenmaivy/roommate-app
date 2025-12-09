@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.947.0",
+    "@aws-sdk/s3-request-presigner": "^3.947.0",
     "@openrouter/sdk": "^0.2.9",
     "@vietmap/vietmap-gl-js": "^6.0.1",
     "aws-amplify": "^6.15.7",

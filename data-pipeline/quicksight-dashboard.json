@@ -1,0 +1,27 @@
+{
+  "Name": "Phân tích Thị trường Phòng Trọ & Căn hộ TP.HCM",
+  "Permissions": [
+    {
+      "Principal": "arn:aws:quicksight:us-east-1:YOUR_ACCOUNT_ID:user/default/YOUR_USER",
+      "Actions": [
+        "quicksight:DescribeDashboard",
+        "quicksight:ListDashboardVersions",
+        "quicksight:UpdateDashboard",
+        "quicksight:DeleteDashboard",
+        "quicksight:UpdateDashboardPermissions"
+      ]
+    }
+  ],
+  "Version": {
+    "DataSetReferences": [
+      {
+        "DataSetPlaceholder": "room_listings",
+        "DataSetArn": "arn:aws:quicksight:us-east-1:YOUR_ACCOUNT_ID:dataset/room_listings_dataset"
+      }
+    ],
+    "Description": "Dashboard phân tích giá thuê, tiện ích, khu vực hot tại TP.HCM"
+  },
+  "Tags": [
+    { "Key": "Project", "Value": "Roommate App Analytics" }
+  ]
+}

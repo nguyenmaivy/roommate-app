@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  RoomApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+  RoomCrudFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: RoomCrudFunction
+      Handler: roomCrud.handler
+      Runtime: nodejs20.x
+      Events:
+        CreateRoom:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: RoomApi
+            Path: /rooms
+            Method: post
+        ListRooms:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: RoomApi
+            Path: /rooms
+            Method: get
+    Metadata:
+      SamResourceId: RoomCrudFunction
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: RegisterFunction
+      Handler: registerUser.handler
+      Runtime: nodejs20.x
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: UsersTable
+      Environment:
+        Variables:
+          USERS_TABLE:
+            Ref: UsersTable
+      Events:
+        RegisterApi:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: RoomApi
+            Path: /register
+            Method: post
+    Metadata:
+      SamResourceId: RegisterFunction
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: LoginFunction
+      Handler: loginUser.handler
+      Runtime: nodejs20.x
+      Policies:
+      - DynamoDBReadPolicy:
+          TableName:
+            Ref: UsersTable
+      Environment:
+        Variables:
+          USERS_TABLE:
+            Ref: UsersTable
+          JWT_SECRET: supersecret
+      Events:
+        LoginApi:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: RoomApi
+            Path: /login
+            Method: post
+    Metadata:
+      SamResourceId: LoginFunction
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: email
+        AttributeType: S
+      KeySchema:
+      - AttributeName: email
+        KeyType: HASH

@@ -74,6 +74,10 @@ export default function Navbar() {
                 <Link href="/chat" className="text-sm font-medium text-gray-700 hover:text-indigo-600">
                   Chat
                 </Link>
+                <Link href="/dashboard" className="text-sm font-medium text-gray-700 hover:text-indigo-600">
+                  Thống kê
+                </Link>
+
                 <button
                   onClick={handleLogout}
                   className="px-3 py-1 text-sm bg-red-500 text-white rounded-full hover:bg-red-600 transition font-medium flex items-center gap-1"
