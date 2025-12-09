@@ -221,7 +221,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
             <button
               type="button"
               onClick={() => {
-                // setIsLogin(!isLogin)
+                setIsLogin(!isLogin)
                 setErrors({})
               }}
               className="text-indigo-600 font-semibold hover:underline"
