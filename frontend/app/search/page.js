@@ -6,13 +6,15 @@ import RoomCard from '@/components/RoomCard';
 import RoomMap from '@/components/RoomMap';
 import ReviewModal from '@/components/ReviewModal';
 import { AMENITIES, USER_ROLES } from '@/mockData';
+import ChatModal from "@/components/ChatModal"
+import { useUser } from '../Store/UserContext';
 
 const VIETMAP_rereverse_API_KEY = process.env.NEXT_PUBLIC_VIETMAP_reverse_API_KEY;
 
 export default function SearchPage() {
   const [rooms, setRooms] = useState([]);
   const [favorites, setFavorites] = useState([]);
-  const [user, setUser] = useState({ id: 'U1', role: USER_ROLES.STUDENT });
+  const { user } = useUser();
   const [filters, setFilters] = useState({
     location: '',
     minPrice: '',
@@ -25,10 +27,11 @@ export default function SearchPage() {
   });
   const [reviewRoom, setReviewRoom] = useState(null);
   const [chatRoom, setChatRoom] = useState(null); // chưa sử dụng
-  const isLandlord = user.role === USER_ROLES.LANDLORD;
+  const isLandlord = user?.role == "LANDLORD";
   const [suggestions, setSuggestions] = useState([]);
   const [searchCoords, setSearchCoords] = useState(null);
   const timeoutRef = useRef(null);
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     async function fetchRooms() {
       try {
@@ -88,7 +91,7 @@ export default function SearchPage() {
       if (filters.maxArea && room.area > Number(filters.maxArea)) return false;
       if (filters.amenities.length > 0 && !filters.amenities.every(a => room.amenities.includes(a))) return false;
       if (filters.showFavorites && !favorites.includes(room.id)) return false;
-      if (isLandlord && room.landlordId !== user.id) return false;
+      if (isLandlord && room.landlordId !== user?.id) return false;
       return true;
     });
     if (searchCoords) {
@@ -105,7 +108,7 @@ export default function SearchPage() {
         .sort((a, b) => a.distance - b.distance); // gần -> xa
     }
     return result;
-  }, [rooms, filters, favorites, isLandlord, user.id, searchCoords]);
+  }, [rooms, filters, favorites, isLandlord, user?.id, searchCoords]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -140,12 +143,14 @@ export default function SearchPage() {
     }
 
     try {
+      setLoading(true);
       const url = `https://maps.vietmap.vn/api/autocomplete/v4?apikey=${VIETMAP_rereverse_API_KEY}&text=${encodeURIComponent(text)}&cityId=12`; // TP.HCM
 
       const res = await fetch(url);
       const data = await res.json();
 
       setSuggestions(data || []);
+      setLoading(false);
     } catch (e) {
       console.error("Vietmap error:", e);
     }
@@ -164,8 +169,8 @@ export default function SearchPage() {
     if (!detail.lat || !detail.lng) return;
 
     setSearchCoords({ lat: detail.lat, lng: detail.lng });
-
   };
+
   function calculateDistance(lat1, lng1, lat2, lng2) {
     const R = 6371; // km
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -180,7 +185,6 @@ export default function SearchPage() {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-
   return (
     <div className="lg:flex lg:space-x-8">
       <div className="lg:w-1/4 w-full mb-8 lg:mb-0">
@@ -188,7 +192,7 @@ export default function SearchPage() {
           <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
             <Search className="w-5 h-5 mr-2 text-indigo-500" /> Tìm kiếm & Lọc
           </h2>
-          <div className="mb-4">
+          <div className="mb-4 relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vị trí (Tìm theo VietMap)
             </label>
@@ -200,7 +204,9 @@ export default function SearchPage() {
               placeholder="Nhập địa điểm: Q5, Thủ Đức..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
-
+            {loading && (
+              <div className="absolute right-3 bottom-3 animate-spin w-4 h-4 border-3 border-gray-300 border-t-blue-500 rounded-full"></div>
+            )}
             {/* Gợi ý địa điểm */}
             {suggestions.length > 0 && (
               <ul className="absolute w-full bg-white shadow-lg border rounded-lg mt-1 max-h-60 overflow-y-auto z-50">
@@ -263,7 +269,7 @@ export default function SearchPage() {
               })}
             </div>
           </div>
-          {user.role === USER_ROLES.STUDENT && (
+          {user?.role === USER_ROLES.STUDENT && (
             <div className="mb-6">
               <label className="flex items-center text-sm font-medium text-gray-700">
                 <input
@@ -296,12 +302,20 @@ export default function SearchPage() {
               <div key={room.id}>
                 <RoomCard
                   room={room}
-                  currentUserId={user.id}
-                  userRole={user.role}
+                  currentUserId={user?.id}
+                  userRole={user?.role}
                   toggleFavorite={toggleFavorite}
                   onEdit={() => console.log('Edit:', room.id)}
                   onDelete={() => console.log('Delete:', room.id)}
-                  onChat={() => setReviewRoom(room)}
+                  onChat={() => {
+                    const chatRoomId = `${room.id}_${user?.id}`;   // ✅ tạo roomId unique
+                    setChatRoom({
+                      roomId: chatRoomId,
+                      landlordId: room.landlordId,
+                      studentId: user?.id,
+                      roomTitle: room.title,
+                    });
+                  }}
                 />
                 <button
                   onClick={() => setReviewRoom(room)}
@@ -326,6 +340,8 @@ export default function SearchPage() {
           onSave={handleSaveReview}
         />
       )}
+      {chatRoom && <ChatModal room={chatRoom} onClose={() => setChatRoom(null)} />}
     </div>
+
   );
 }

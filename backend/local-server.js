@@ -8,6 +8,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { createRoom, getRooms, getRoom, updateRoom, deleteRoom, __setDocumentClient as setRoomClient } from "./lambda/roomCrud.js";
 import { initChatRealtime, getMessages, getUserChats, __setDocumentClient as setChatClient } from "./lambda/chatMessage.js";
 import { switchRoleHandler, __setDocumentClient as setSwitchRole } from "./lambda/switchRole.js";
+import { getAmenities, __setDocumentClient as setAmenities } from "./lambda/amenities.js";
 import { Server } from "socket.io";
 import cors from "cors";
 import http from "http";
@@ -105,6 +106,7 @@ setLoginClient(ddb);
 setRoomClient(ddb);
 setChatClient(ddb);
 setSwitchRole(ddb);
+setAmenities(ddb);
 // --- Register ---
 app.post("/register", async (req, res) => {
   const event = { body: JSON.stringify(req.body) };
@@ -228,6 +230,11 @@ app.post("/switch-role", authMiddleware, async (req, res) => {
   }
 });
 
+// READ ALL AMENITIES
+app.get("/amenities", async (req, res) => {
+  const response = await getAmenities();
+  res.status(response.statusCode).json(JSON.parse(response.body));
+});
 
 // --- Example route bảo vệ ---
 app.get("/profile", authMiddleware, (req, res) => {

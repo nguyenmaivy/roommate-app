@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot } from "lucide-react";
-import { ROOMS } from "@/mockData";
 import { filterRooms } from "@/app/chat/page-ai";
 import Link from "next/link";
 
@@ -52,8 +51,8 @@ export default function RoomChatbot() {
       });
 
       const filters = await res.json();
-      const rooms = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`);
-      const roomsData = await rooms.json();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`);
+      const roomsData = (await response.json()).rooms;
       const results = filterRooms(filters, roomsData);
 
       setIsTyping(false);
