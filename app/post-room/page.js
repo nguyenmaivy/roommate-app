@@ -7,7 +7,7 @@ import Location from "../../components/Location"
 import { toast } from "react-toastify";
 import { useUser } from "../Store/UserContext";
 
-export const AMENITIES = [
+const AMENITIES = [
 	{ key: "frn", label: "Đầy đủ nội thất" },
 	{ key: "mez", label: "Có gác" },
 	{ key: "kit", label: "Có kệ bếp" },
