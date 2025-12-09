@@ -8,10 +8,10 @@ import RoomCard from "@/components/RoomCard"
 import RoomFormModal from "@/components/RoomFormModal"
 import ChatModal from "@/components/ChatModal"
 import { useUser } from "./Store/UserContext"
-import { AMENITIES } from "@/mockData"
+// import { AMENITIES } from "@/mockData"
 import RoomChatbot from "@/components/RoomChatbot"
 import FloatingChatButton from "@/components/FloatingChatButton"
-
+import LoadingSpinner from "@/components/LoadingSpinner"
 interface Room {
   id: string
   title: string
@@ -67,15 +67,20 @@ export default function Home() {
     amenities: [],
     showFavorites: false,
   })
-
+interface Amenity {
+  key: string;
+  label: string;
+}
   // State cho Modal Thêm/Sửa
   const [showFormModal, setShowFormModal] = useState(false)
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
   const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
-
+  const [amenities, setAmenities] = useState<Amenity[]>([])
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
     async function fetchRooms() {
       try {
+        setLoading(true)
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`)
         const data = (await res.json()).rooms
 
@@ -90,11 +95,38 @@ export default function Home() {
         console.error("❌ Error loading rooms:", error)
         setRooms([]) // fallback
       }
+      finally {
+        setLoading(false)
+      }
+
     }
 
     fetchRooms()
   }, [])
-
+  useEffect(() => {
+    const fetchAmenities = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/amenities`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          }
+        )
+        const data = await res.json()
+        console.log(data)
+        setAmenities(data?.data)
+      } catch (err) {
+        console.error("Lỗi lấy tiện ích:", err)
+      }
+      finally {
+        setLoading(false)
+      }
+    }
+    fetchAmenities()
+  }, [])
   // --- HANDLERS DỮ LIỆU ---
 
   /** Toggle trạng thái Favorite (Lưu) */
@@ -347,9 +379,9 @@ export default function Home() {
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tiện ích</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {AMENITIES.map((amenity) => (
+                  {amenities.map((amenity : Amenity) => (
                     <button
-                      key={amenity.key}
+                      key={amenity?.key}
                       onClick={() => handleAmenityFilter(amenity.key)}
                       className={`flex items-center justify-center p-2 text-xs rounded-lg border transition ${filters.amenities.includes(amenity.key)
                         ? "bg-indigo-500 text-white border-indigo-500"
@@ -440,6 +472,7 @@ export default function Home() {
                         roomTitle: room.title,
                       });
                     }}
+                    amenities={amenities}
                   />
                 ))
               ) : (
@@ -481,6 +514,8 @@ export default function Home() {
           </button>
         </div>
       )}
+      {loading && <LoadingSpinner/>}
+      
     </div>
   )
 }

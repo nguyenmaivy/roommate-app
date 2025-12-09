@@ -7,34 +7,20 @@ import Location from "../../components/Location"
 import { toast } from "react-toastify";
 import { useUser } from "../Store/UserContext";
 
-
-
-const RENTAL_TYPES = [
-	{ id: "phong_tro", name: "Cho thuê phòng trọ" },
-	{ id: "nha_nguyen_can", name: "Cho thuê nhà" },
-	{ id: "mat_bang", name: "Cho thuê mặt bằng" },
-	{ id: "can_ho_mini", name: "Cho thuê căn hộ mini" },
+export const AMENITIES = [
+	{ key: "frn", label: "Đầy đủ nội thất" },
+	{ key: "mez", label: "Có gác" },
+	{ key: "kit", label: "Có kệ bếp" },
+	{ key: "airCon", label: "Có máy lạnh" },
+	{ key: "wm", label: "Có máy giặt" },
+	{ key: "ref", label: "Có tủ lạnh" },
+	{ key: "flxh", label: "Giờ giấc tự do" },
+	{ key: "sec24", label: "Có bảo vệ 24/24" },
+	{ key: "elv", label: "Có thang máy" },
+	{ key: "parking", label: "Có hầm để xe" },
+	{ key: "nso", label: "Không chung chủ" },
 ]
 
-const CATEGORIES = [
-	{ id: 1, name: "Phòng trọ, nhà trọ" },
-	{ id: 2, name: "Nhà thuê nguyên căn" },
-	{ id: 3, name: "Căn hộ" },
-]
-
-const FEATURES = [
-	{ id: "full_noi_that", label: "Đầy đủ nội thất" },
-	{ id: "gac", label: "Có gác" },
-	{ id: "ke_bep", label: "Có kệ bếp" },
-	{ id: "may_lanh", label: "Có máy lạnh" },
-	{ id: "may_giat", label: "Có máy giặt" },
-	{ id: "tu_lanh", label: "Có tủ lạnh" },
-	{ id: "thang_may", label: "Có thang máy" },
-	{ id: "khong_chung_chu", label: "Không chung chủ" },
-	{ id: "tu_do", label: "Giờ giấc tự do" },
-	{ id: "bao_ve", label: "Có bảo vệ 24/24" },
-	{ id: "ham_de_xe", label: "Có hầm để xe" },
-]
 
 export default function PostPage() {
 	const [activeTab, setActiveTab] = useState("khuvuc")
@@ -43,28 +29,34 @@ export default function PostPage() {
 	const [isLastTab, setIsLastTab] = useState(false)
 	const [currentTabIndex, setCurrentTabIndex] = useState(0)
 	const [formData, setFormData] = useState({
-		category: "",
+		id: "",
 		title: "",
 		district: "",
 		ward: "",
+		street: "",
 		address: "",
+		// category: "",
 		price: "",
 		priceUnit: "0",
 		area: "",
-		features: [],
+		amenities: [],
 		description: "",
-		contactName: "",
-		imageUrl: [],
-		videoUrl: [],
-		videos: [],
-		contactPhone: "",
+		contact_name: "",
+		contact_phone: "",
+
+		images: [],
+		// videoLink: "",
+		// videos: [],
+
+		location: { lat: null, lng: null },
 	})
+
 
 	const tabs = [
 		{ id: "khuvuc", label: "Khu vực" },
 		{ id: "thongtinmota", label: "Thông tin mô tả" },
 		{ id: "hinhanh", label: "Hình ảnh" },
-		{ id: "video", label: "Video" },
+		// { id: "video", label: "Video" },
 		{ id: "thongtinlienhe", label: "Thông tin liên hệ" },
 	]
 
@@ -77,7 +69,7 @@ export default function PostPage() {
 	const goToNextTab = () => {
 		switch (activeTab) {
 			case "khuvuc":
-				if (!formData.district || !formData.ward || !formData.street || !formData.category) {
+				if (!formData.district || !formData.ward || !formData.street) {
 					console.log("Form data in khu vuc:", formData)
 					toast("Vui lòng điền đầy đủ thông tin khu vực.", { type: "error" })
 					return
@@ -90,7 +82,7 @@ export default function PostPage() {
 				}
 				break
 			case "hinhanh":
-				if (formData.imageUrl.length === 0) {
+				if (formData.images.length === 0) {
 					toast("Vui lòng tải lên ít nhất một hình ảnh.", { type: "error" })
 					return
 				}
@@ -99,7 +91,7 @@ export default function PostPage() {
 				// Video is optional
 				break
 			case "thongtinlienhe":
-				if (!formData.contactName || !formData.contactPhone) {
+				if (!user?.name || !formData.contact_phone) {
 					toast("Vui lòng điền đầy đủ thông tin liên hệ.", { type: "error" })
 					return
 				}
@@ -118,12 +110,12 @@ export default function PostPage() {
 	const handleFeatureToggle = (id) => {
 		setFormData((prev) => ({
 			...prev,
-			features: prev.features.includes(id) ? prev.features.filter((f) => f !== id) : [...prev.features, id],
+			amenities: prev.amenities.includes(id) ? prev.amenities.filter((f) => f !== id) : [...prev.amenities, id],
 		}))
 	}
 
 	const handleValidateForm = () => {
-		if (!formData.district || !formData.ward || !formData.street || !formData.category) {
+		if (!formData.district || !formData.ward || !formData.street) {
 			toast("Vui lòng điền đầy đủ thông tin khu vực.", { type: "error" })
 			return false
 		}
@@ -131,11 +123,11 @@ export default function PostPage() {
 			toast("Vui lòng điền đầy đủ thông tin mô tả.", { type: "error" })
 			return false
 		}
-		if (formData.imageUrl.length === 0) {
+		if (formData.images.length === 0) {
 			toast("Vui lòng tải lên ít nhất một hình ảnh.", { type: "error" })
 			return false
 		}
-		if (!formData.contactName || !formData.contactPhone) {
+		if (!user?.name || !formData.contact_phone) {
 			toast("Vui lòng điền đầy đủ thông tin liên hệ.", { type: "error" })
 			return false
 		}
@@ -144,120 +136,97 @@ export default function PostPage() {
 	const handleSubmit = async (e) => {
 		e.preventDefault()
 		if (!handleValidateForm()) return
-		const dataToSubmit = {}
-		if (formData.category == 1) {
-			dataToSubmit.rental_type = "Phòng trọ, nhà trọ"
-		}
-		else if (formData.category == 2) {
-			dataToSubmit.rental_type = "Nhà thuê nguyên căn"
-		}
-		else if (formData.category == 3) {
-			dataToSubmit.rental_type = "Căn hộ"
-		}
-		dataToSubmit.title = formData.title
-		dataToSubmit.address = `${formData.street}, ${formData.ward}, ${formData.district}`
-		dataToSubmit.price = formData.price
-		dataToSubmit.area = formData.area
-		dataToSubmit.amenities = formData.features
-		dataToSubmit.description = formData.description
-		dataToSubmit.imageUrl = formData.imageUrl
-		dataToSubmit.location = { lat: formData.locationCoords[1], lng: formData.locationCoords[0] }
-		dataToSubmit.landlordId = user.id
-		// Gửi dữ liệu đến backend
-		const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
+
+		const dataToSubmit = {
+			title: formData.title,
+			description: formData.description,
+			price: Number(formData.price),
+			area: Number(formData.area),
+
+			address: `${formData.street}, ${formData.ward}, ${formData.district}`,
+			district: formData.district,
+			ward: formData.ward,
+
+			location: {
+				lat: formData.location.lat,
+				lng: formData.location.lng,
 			},
-			credentials: "include",
-			body: JSON.stringify(dataToSubmit),
-		})
-		if (!res.ok) {
-			toast("Đăng tin thất bại. Vui lòng thử lại.", { type: "error" })
-			return
+
+			images: formData.images,
+			// videoLink: formData.videoLink,
+			// videos: formData.videos,
+
+			amenities: formData.amenities,
+			// rental_type: formData.category,
+
+			contact_name: user?.name,
+			contact_phone: formData.contact_phone,
+
+
+			landlordId: user.id,
+			date: new Date().toLocaleString("vi-VN"),
 		}
-		toast("Đăng tin thành công!", { type: "success" })
-		console.log("Form data:", formData)
+
+		try {
+			const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/rooms`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify(dataToSubmit),
+			})
+
+			if (!res.ok) {
+				const err = await res.text()
+				console.error("SERVER ERROR:", err)
+				toast("Đăng tin thất bại. Vui lòng thử lại.", { type: "error" })
+				return
+			}
+
+			toast("Đăng tin thành công!", { type: "success" })
+			console.log("FORM SUBMIT:", dataToSubmit)
+
+		} catch (error) {
+			console.error("NETWORK ERROR:", error)
+			toast("Không thể kết nối đến server!", { type: "error" })
+		}
 	}
+
 
 	const handleImageUpload = (e) => {
 		const files = e.target.files
 		if (!files) return
 
 		Array.from(files).forEach((file) => {
-			// Validate file size (max 10MB)
-			if (file.size > 10 * 1024 * 1024) {
-				alert("Ảnh không được vượt quá 10MB")
+			// ✅ Giới hạn 2MB
+			if (file.size > 2 * 1024 * 1024) {
+				alert("Ảnh không được vượt quá 2MB")
 				return
 			}
 
-			// Validate file type
+			// ✅ Chỉ cho phép image
 			if (!file.type.startsWith("image/")) {
 				alert("Chỉ chấp nhận file ảnh")
 				return
 			}
 
-			// Validate max 20 images
-			if (formData.imageUrl.length >= 20) {
+			// ✅ Tối đa 20 ảnh
+			if (formData.images.length >= 20) {
 				alert("Tối đa 20 ảnh")
 				return
 			}
 
-			// Create preview URL
-			const reader = new FileReader()
-			reader.onload = (event) => {
-				const imageUrl = event.target?.result?.toString()
-				setFormData((prev) => ({
-					...prev,
-					imageUrl: [...prev.imageUrl, imageUrl],
-				}))
-			}
-			reader.readAsDataURL(file)
+			setFormData((prev) => ({
+				...prev,
+				images: [...prev.images, file], //  LƯU FILE, KHÔNG PHẢI BASE64
+			}))
 		})
 	}
+
 
 	const handleRemoveImage = (index) => {
 		setFormData((prev) => ({
 			...prev,
-			imageUrl: prev.imageUrl.filter((_, i) => i !== index),
-		}))
-	}
-
-	const handleVideoLinkChange = (e) => {
-		setFormData((prev) => ({
-			...prev,
-			videoLink: e.target.value,
-		}))
-	}
-	const handleVideoUpload = (e) => {
-		const files = e.target.files
-		if (!files) return
-
-		Array.from(files).forEach((file) => {
-			// Validate file type
-			if (!file.type.startsWith("video/")) {
-				alert("Chỉ chấp nhận file video")
-				return
-			}
-
-			// Create preview URL
-			const reader = new FileReader()
-			reader.onload = (event) => {
-				const videoUrl = event.target?.result?.toString()
-				setFormData((prev) => ({
-					...prev,
-					videos: [...prev.videos, videoUrl],
-				}))
-			}
-			reader.readAsDataURL(file)
-		})
-	}
-
-
-	const handleRemoveVideo = (index) => {
-		setFormData((prev) => ({
-			...prev,
-			videos: prev.videos.filter((_, i) => i !== index),
+			images: prev.images.filter((_, i) => i !== index),
 		}))
 	}
 
@@ -348,27 +317,6 @@ export default function PostPage() {
 							{/* SECTION 1: KHU VỰC */}
 							{activeTab === "khuvuc" && (
 								<div className="space-y-4">
-									<div className="bg-white rounded-lg shadow-md p-6">
-										<h3 className="text-lg font-bold text-gray-800 mb-4">Loại chuyên mục</h3>
-										<div>
-											<label className="block text-sm font-medium text-gray-700 mb-2">
-												Loại chuyên mục <span className="text-red-500">*</span>
-											</label>
-											<select
-												name="category"
-												value={formData.category}
-												onChange={handleChange}
-												className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-											>
-												<option value="">-- Chọn loại chuyên mục --</option>
-												{CATEGORIES.map((cat) => (
-													<option key={cat.id} value={cat.id}>
-														{cat.name}
-													</option>
-												))}
-											</select>
-										</div>
-									</div>
 									<Location
 										formData={formData}
 										setFormData={setFormData}
@@ -453,21 +401,22 @@ export default function PostPage() {
 										</div>
 									</div>
 
-									{/* Features */}
+									{/* AMENITIES */}
 									<div className="bg-white rounded-lg shadow-md p-6">
 										<h3 className="text-lg font-bold text-gray-800 mb-4">Tiện ích</h3>
 										<div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-											{FEATURES.map((feature) => (
-												<label key={feature.id} className="flex items-center space-x-2 cursor-pointer">
+											{AMENITIES.map((amenities) => (
+												<label key={amenities.key} className="flex items-center space-x-2 cursor-pointer">
 													<input
 														type="checkbox"
-														checked={formData.features.includes(feature.id)}
-														onChange={() => handleFeatureToggle(feature.id)}
+														checked={formData.amenities.includes(amenities.key)}
+														onChange={() => handleFeatureToggle(amenities.key)}
 														className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
 													/>
-													<span className="text-sm text-gray-700">{feature.label}</span>
+													<span className="text-sm text-gray-700">{amenities.label}</span>
 												</label>
 											))}
+
 										</div>
 									</div>
 
@@ -509,7 +458,7 @@ export default function PostPage() {
 													accept="image/*"
 													onChange={handleImageUpload}
 													className="hidden"
-													disabled={formData.imageUrl.length >= 20}
+													disabled={formData.images.length >= 20}
 												/>
 												<p className="text-gray-600 font-medium mb-2">Tải ảnh từ thiết bị</p>
 												<p className="text-xs text-gray-500">Tối đa 20 ảnh, dung lượng tối đa 10MB/ảnh</p>
@@ -517,16 +466,16 @@ export default function PostPage() {
 										</div>
 
 										{/* Image Preview Grid */}
-										{formData.imageUrl.length > 0 && (
+										{formData.images.length > 0 && (
 											<div>
 												<p className="text-sm font-medium text-gray-700 mb-3">
-													Hình ảnh đã tải ({formData.imageUrl.length}/20)
+													Hình ảnh đã tải ({formData.images.length}/20)
 												</p>
 												<div className="grid grid-cols-3 gap-4">
-													{formData.imageUrl.map((imageUrl, index) => (
+													{formData.images.map((images, index) => (
 														<div key={index} className="relative group">
 															<img
-																src={imageUrl || "/placeholder.svg"}
+																src={images || "/placeholder.svg"}
 																alt={`Preview ${index + 1}`}
 																className="w-full h-32 object-cover rounded-lg"
 															/>
@@ -547,63 +496,7 @@ export default function PostPage() {
 							)}
 
 
-							{/* SECTION 4: VIDEO */}
-							{activeTab === "video" && (
-								<div className="space-y-4">
-									<div className="bg-white rounded-lg shadow-md p-6">
-										<h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-											<Video className="w-5 h-5 mr-2" />
-											Video
-										</h3>
 
-										{/* Video Link Input */}
-										<div className="mb-6">
-											<label className="block text-sm font-medium text-gray-700 mb-2">
-												Video Link (Youtube/Tiktok)
-											</label>
-											<input
-												type="text"
-												value={formData.videoLink}
-												onChange={handleVideoLinkChange}
-												placeholder="https://www.youtube.com/watch?v=..."
-												className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-											/>
-										</div>
-
-										{/* Video Upload UI */}
-										<div>
-											<label className="block border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition">
-												<input type="file" multiple accept="video/*" onChange={handleVideoUpload} className="hidden" />
-												<p className="text-gray-600 font-medium mb-2">Tải Video từ thiết bị</p>
-												<p className="text-xs text-gray-500">Hỗ trợ mp4, avi, mov, v.v.</p>
-											</label>
-										</div>
-
-										{/* Video Preview */}
-										{formData.videos.length > 0 && (
-											<div className="mt-6">
-												<p className="text-sm font-medium text-gray-700 mb-3">
-													Video đã tải ({formData.videos.length})
-												</p>
-												<div className="space-y-4">
-													{formData.videos.map((videoUrl, index) => (
-														<div key={index} className="relative">
-															<video src={videoUrl} controls className="w-full h-48 bg-black rounded-lg" />
-															<button
-																type="button"
-																onClick={() => handleRemoveVideo(index)}
-																className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition"
-															>
-																×
-															</button>
-														</div>
-													))}
-												</div>
-											</div>
-										)}
-									</div>
-								</div>
-							)}
 
 							{/* SECTION 5: THÔNG TIN LIÊN HỆ */}
 							{activeTab === "thongtinlienhe" && (
@@ -618,8 +511,8 @@ export default function PostPage() {
 												<label className="block text-sm font-medium text-gray-700 mb-2">Họ Tên</label>
 												<input
 													type="text"
-													name="contactName"
-													value={formData.contactName}
+													name="contact_name"
+													value={user?.name}
 													onChange={handleChange}
 													placeholder="Họ và tên"
 													className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
@@ -629,8 +522,8 @@ export default function PostPage() {
 												<label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
 												<input
 													type="tel"
-													name="contactPhone"
-													value={formData.contactPhone}
+													name="contact_phone"
+													value={formData.contact_phone}
 													onChange={handleChange}
 													className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 												/>

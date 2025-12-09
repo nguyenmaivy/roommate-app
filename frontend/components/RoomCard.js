@@ -1,23 +1,43 @@
 "use client"
 import Link from "next/link"
 import { MapPin, Ruler, Zap, Heart, MessageSquare, Edit, Trash2 } from "lucide-react"
-import { AMENITIES, USER_ROLES  } from "@/mockData"
-
-export default function RoomCard({ room, currentUserId, userRole, toggleFavorite, onEdit, onDelete, onChat }) {
-  const isOwner = room.landlordId === currentUserId && userRole === USER_ROLES .LANDLORD
+import { USER_ROLES } from "@/mockData"
+import { useEffect, useState } from "react"
+import { ca } from "date-fns/locale"
+export default function RoomCard({ room, currentUserId, userRole, toggleFavorite, onEdit, onDelete, onChat, amenities }) {
+  const isOwner = room.landlordId === currentUserId && userRole === USER_ROLES.LANDLORD
   const isFavorite = room.isFavorite
-
   // Thay thế bằng logic API thực tế khi triển khai DynamoDB
-  const roomAmenities = AMENITIES.filter((a) => room.amenities.includes(a.key))
-    .map((a) => a.label)
-    .join(", ")
+  // const roomAmenities = AMENITIES.filter((a) => room.amenities.includes(a.key))
+  //   .map((a) => a.label)
+  //   .join(", ")
+  const [roomAmenities, setRoomAmenities] = useState("")
+  
+  useEffect(() => {
+    const fetchAmenities = async () => {
+      try {
+        const labels = amenities
+          .filter((a) => room.amenities?.includes(a.key))
+          .map((a) => a.label)
+          .join(", ")
+        setRoomAmenities(labels)
+      } catch (err) {
+        console.error("Lỗi lấy tiện ích:", err)
+        setRoomAmenities("Không có")
+      }
+    }
+
+    if (room.amenities?.length > 0) {
+      fetchAmenities()
+    }
+  }, [room, amenities])
 
   return (
     <div className="bg-white border border-gray-100 shadow-xl rounded-xl overflow-hidden hover:shadow-2xl transition duration-300 transform hover:-translate-y-1 flex flex-col md:flex-row">
       {/* Ảnh Phòng Trọ (S3/CloudFront) */}
       <div className="md:w-1/3 w-full h-48 md:h-auto overflow-hidden">
         <img
-          src={room.imageUrl || room.images?.[0]}
+          src={room.imageUrl?.[0] || room.images?.[0]}
           alt={room.title || room.address}
           className="w-full h-full object-cover transition duration-300 hover:scale-105"
           onError={(e) => {

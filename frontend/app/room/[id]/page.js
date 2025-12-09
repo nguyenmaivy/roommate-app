@@ -6,20 +6,26 @@ import { MapPin, Ruler, Zap, Heart, MessageSquare, ArrowLeft, Star } from 'lucid
 import Link from 'next/link';
 import { AMENITIES, USER_ROLES } from '@/mockData';
 import ChatModal from '@/components/ChatModal';
-
 export default function RoomDetailPage() {
   const params = useParams();
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user] = useState({ id: 'U1', role: USER_ROLES.STUDENT });
   const [chatRoom, setChatRoom] = useState(null);
+  const [roomAmenities, setRoomAmenities] = useState([])
+
+
 
   useEffect(() => {
     async function fetchRoom() {
       try {
-        const res = await fetch(`/api/proxy/rooms/${params.id}`);
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/rooms/${params.id}`,
+          { credentials: "include" }
+        );
+      
         const data = await res.json();
-        setRoom(data);
+        setRoom(data.room);
       } catch (error) {
         console.error('Error fetching room:', error);
         setRoom(null);
@@ -29,6 +35,29 @@ export default function RoomDetailPage() {
     }
     fetchRoom();
   }, [params.id]);
+
+  useEffect(() => {
+    const fetchAmenities = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/amenities`,
+          { credentials: "include" }
+        )
+        const data = await res.json()
+
+        const labels = data.data
+          .filter((a) => room?.amenities?.includes(a.key))
+          .map((a) => a.label)
+
+        setRoomAmenities(labels)
+      } catch (err) {
+        console.error("❌ Lỗi load tiện ích:", err)
+        setRoomAmenities([])
+      }
+    }
+      fetchAmenities()
+  }, [room])
+
 
   if (loading) {
     return (
@@ -54,15 +83,16 @@ export default function RoomDetailPage() {
     );
   }
 
-  const roomAmenities = AMENITIES.filter(a => room.amenities.includes(a.key)).map(a => a.label);
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <div className="mb-6">
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="inline-flex items-center text-indigo-600 hover:text-indigo-800 transition"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -76,7 +106,7 @@ export default function RoomDetailPage() {
             {/* Ảnh phòng trọ */}
             <div className="mb-6">
               <img
-                src={room.imageUrl || room.images?.[0]}
+                src={room.imageUrl?.[0] || room.images?.[0]}
                 alt={room.title || room.address}
                 className="w-full h-96 object-cover rounded-xl shadow-lg"
                 onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/800x400/CCCCCC/333333?text=No+Image" }}
@@ -86,7 +116,7 @@ export default function RoomDetailPage() {
             {/* Thông tin chi tiết */}
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
               <h1 className="text-3xl font-bold text-gray-800 mb-4">{room.title || room.address}</h1>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="flex items-center text-gray-600">
                   <MapPin className="w-5 h-5 mr-3 text-indigo-500" />
@@ -162,7 +192,7 @@ export default function RoomDetailPage() {
                   <MessageSquare className="w-5 h-5 mr-2" />
                   Liên hệ chủ trọ
                 </button>
-                
+
                 <button className="w-full flex items-center justify-center px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium">
                   <Heart className="w-5 h-5 mr-2" />
                   Lưu phòng này
