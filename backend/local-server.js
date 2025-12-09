@@ -111,8 +111,11 @@ setAmenities(ddb);
 app.post("/register", async (req, res) => {
   const event = { body: JSON.stringify(req.body) };
   const response = await registerUserHandler(event);
-  res.status(response.statusCode).json(JSON.parse(response.body));
+  res.set(response.headers || {})
+     .status(response.statusCode)
+     .json(JSON.parse(response.body));
 });
+
 
 // --- Login ---
 app.post("/login", async (req, res) => {
