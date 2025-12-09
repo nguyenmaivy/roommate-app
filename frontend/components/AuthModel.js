@@ -12,6 +12,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
     password: "",
     fullName: "",
     confirmPassword: "",
+    phone: "",
   })
   const [errors, setErrors] = useState({})
   useEffect(() => {
@@ -54,6 +55,13 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
         newErrors.confirmPassword = "Mật khẩu xác nhận không khớp"
       }
     }
+    if(!isLogin){
+      if (!formData.phone) {
+        newErrors.phone = "So dien thoai khong duoc de trong"
+      } else if (!/^(0[3|5|7|8|9])+([0-9]{8})\b/.test(formData.phone)) {
+        newErrors.phone = "So dien thoai khong hop le"
+      }
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -78,7 +86,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
         body: JSON.stringify(
           isLogin
             ? { email: formData.email, password: formData.password }
-            : { email: formData.email, password: formData.password, name: formData.fullName }
+            : { email: formData.email, password: formData.password, name: formData.fullName, phone: formData.phone }
         ),
       });
 
@@ -93,14 +101,16 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
         name: data.user.name,
         email: data.user.email,
         role: data.user.role,
+        phone: data.user.phone,
       });
 
       setUser({
         id: data.user.email,
         name: data.user.name,
         role: data.user.role,
+        phone: data.user.phone
       });
-      setFormData({ email: "", password: "", fullName: "", confirmPassword: "" });
+      setFormData({ email: "", password: "", fullName: "", confirmPassword: "" , phone: ""});
       onClose();
     } catch (err) {
       setErrors({ apiError: "Không thể kết nối server" });
@@ -154,6 +164,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
             />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
+
 
           {/* Password */}
           <div>
@@ -215,7 +226,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
               }}
               className="text-indigo-600 font-semibold hover:underline"
             >
-              {isLogin ? "Đăng ký ngay" : "Đăng nhập"}
+              {isLogin ? "Đăng Ký" : "Đăng nhập"}
             </button>
           </p>
         </form>

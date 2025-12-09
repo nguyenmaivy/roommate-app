@@ -61,6 +61,7 @@ export const meUserHandler = async (req) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          phone: user.phone,
         },
       }),
     };

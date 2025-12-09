@@ -298,7 +298,7 @@ interface Amenity {
       credentials: "include",
     });
     const data = await res.json();
-    setUser((prev) => (prev ? { ...prev, role: data.role } : { role: data.role }));
+    setUser((prev) => (prev ? { ...prev, role: data.role, email: data.email, id: data.id, name: data.name, phone: data.phone } : { role: data.role, email: data.email, id: data.id, name: data.name, phone: data.phone}));
     handleClearFilters()
   }
   // chat bot

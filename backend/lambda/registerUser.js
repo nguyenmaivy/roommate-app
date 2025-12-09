@@ -12,7 +12,7 @@ const USERS_TABLE = "Users";
 
 export const handler = async (event) => {
   const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
-  const { email, password, name } = body;
+  const { email, password, name, contact_phone } = body;
 
   if (!email || !password || !name) {
     return {
@@ -29,6 +29,7 @@ export const handler = async (event) => {
       password: passwordHash,
       name,
       role: "STUDENT",
+      phone: contact_phone,
     };
 
     await ddb.send(

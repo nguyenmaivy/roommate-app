@@ -26,6 +26,8 @@ export default function Navbar() {
           id: data.user.email,
           name: data.user.name,
           role: data.user.role,
+          email: data.user.email,
+          phone: data.user.phone
         });
         setIsLoggedIn(true);
       } catch { }
