@@ -13,15 +13,10 @@ const USERS_TABLE = "Users";
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export const handler = async (event) => {
-<<<<<<< HEAD
   const body =
     typeof event.body === "string" ? JSON.parse(event.body) : event.body;
 
   const { email, password, name } = body;
-=======
-  const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
-  const { email, password, name, contact_phone } = body;
->>>>>>> main
 
   if (!email || !password || !name) {
     return {
@@ -40,7 +35,6 @@ export const handler = async (event) => {
       password: passwordHash,
       name,
       role: "STUDENT",
-      phone: contact_phone,
     };
 
     // Save user
@@ -64,13 +58,13 @@ export const handler = async (event) => {
     );
 
     return {
-      statusCode: 200,
+      statusCode: 201,
       headers: {
         "Set-Cookie": `token=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: "User registered successfullyy",
+        message: "User registered successfully",
         user: {
           name: user.name,
           email: user.email,
