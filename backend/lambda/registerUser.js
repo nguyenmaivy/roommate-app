@@ -13,10 +13,15 @@ const USERS_TABLE = "Users";
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export const handler = async (event) => {
+<<<<<<< HEAD
   const body =
     typeof event.body === "string" ? JSON.parse(event.body) : event.body;
 
   const { email, password, name } = body;
+=======
+  const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+  const { email, password, name, contact_phone } = body;
+>>>>>>> main
 
   if (!email || !password || !name) {
     return {
@@ -35,6 +40,7 @@ export const handler = async (event) => {
       password: passwordHash,
       name,
       role: "STUDENT",
+      phone: contact_phone,
     };
 
     // Save user

@@ -68,10 +68,12 @@ export const handler = async (event) => {
         email,
         name: user.name,
         role: user.role,
+        phone: user.phone,
       },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
+    console.log("✅ Login successful:", user);
 
     return {
       statusCode: 200,
@@ -85,6 +87,7 @@ export const handler = async (event) => {
           email: user.email,
           name: user.name,
           role: user.role,
+          phone: user.phone,
         },
       }),
     };

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { use, useEffect, useState } from "react"
-import { ArrowLeft, ImageIcon, Video, Phone } from "lucide-react"
+import { ArrowLeft, ImageIcon, Phone } from "lucide-react"
 import Location from "../../components/Location"
 import { toast } from "react-toastify";
 import { useUser } from "../Store/UserContext";
@@ -91,7 +91,7 @@ export default function PostPage() {
 				// Video is optional
 				break
 			case "thongtinlienhe":
-				if (!user?.name || !formData.contact_phone) {
+				if (!user?.name || !user?.phone) {
 					toast("Vui lòng điền đầy đủ thông tin liên hệ.", { type: "error" })
 					return
 				}
@@ -127,7 +127,7 @@ export default function PostPage() {
 			toast("Vui lòng tải lên ít nhất một hình ảnh.", { type: "error" })
 			return false
 		}
-		if (!user?.name || !formData.contact_phone) {
+		if (!user?.name || !user?.phone) {
 			toast("Vui lòng điền đầy đủ thông tin liên hệ.", { type: "error" })
 			return false
 		}
@@ -158,9 +158,9 @@ export default function PostPage() {
 
 			amenities: formData.amenities,
 			// rental_type: formData.category,
-
+			email: user?.email,
 			contact_name: user?.name,
-			contact_phone: formData.contact_phone,
+			contact_phone: user?.phone,
 
 
 			landlordId: user.id,
@@ -282,7 +282,7 @@ export default function PostPage() {
 									{user?.phone || "Chưa cập nhật số điện thoại"}
 								</p>
 								<p className="text-xs text-gray-500 mt-2">
-									{user?.email ? `Email: ${user.email}` : "Vui lòng đăng nhập để xem chi tiết"}
+									{user?.email || "Vui lòng đăng nhập để xem chi tiết"}
 								</p>
 							</div>
 
@@ -523,7 +523,7 @@ export default function PostPage() {
 												<input
 													type="tel"
 													name="contact_phone"
-													value={formData.contact_phone}
+													value={user?.phone}
 													onChange={handleChange}
 													className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 												/>
