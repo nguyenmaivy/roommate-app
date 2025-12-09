@@ -144,7 +144,7 @@ export default function AuthModal({ isOpen, mode, onClose, onLoginSuccess }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
-              type="email"
+              type="email"Đăng ký ngay
               name="email"
               value={formData.email}
               onChange={handleChange}

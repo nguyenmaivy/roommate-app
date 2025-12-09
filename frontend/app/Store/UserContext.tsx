@@ -6,7 +6,6 @@ interface User {
   id?: string;
   role?: string;
   [key: string]: any;
-  
 }
 
 interface UserContextType {
